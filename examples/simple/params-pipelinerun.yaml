@@ -1,0 +1,74 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: params-example
+spec:
+  pipelineSpec:
+    params:
+      - name: greeting
+        type: string
+        default: "Hello"
+      - name: packages
+        type: array
+        default:
+          - "fmt"
+          - "strings"
+          - "os"
+      - name: config
+        type: object
+        properties:
+          host:
+            type: string
+          port:
+            type: string
+        default:
+          host: "localhost"
+          port: "8080"
+    tasks:
+      - name: show-params
+        taskSpec:
+          params:
+            - name: greeting
+            - name: packages
+              type: array
+            - name: config
+              type: object
+          steps:
+            - name: show-string
+              image: alpine:latest
+              script: |
+                echo "String param: $(params.greeting)"
+            - name: show-array-star
+              image: alpine:latest
+              script: |
+                echo "All packages: $(params.packages[*])"
+            - name: show-array-index
+              image: alpine:latest
+              script: |
+                echo "First package: $(params.packages[0])"
+                echo "Second package: $(params.packages[1])"
+            - name: show-object
+              image: alpine:latest
+              script: |
+                echo "Host: $(params.config.host)"
+                echo "Port: $(params.config.port)"
+                echo "URL: http://$(params.config.host):$(params.config.port)"
+        params:
+          - name: greeting
+            value: "$(params.greeting)"
+          - name: packages
+            value: "$(params.packages[*])"
+          - name: config
+            value: "$(params.config)"
+  params:
+    - name: greeting
+      value: "Welcome"
+    - name: packages
+      value:
+        - "encoding/json"
+        - "net/http"
+        - "context"
+    - name: config
+      value:
+        host: "api.example.com"
+        port: "443"

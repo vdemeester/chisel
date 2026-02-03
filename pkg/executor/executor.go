@@ -238,10 +238,64 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 func (e *Executor) substituteVariables(input string, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) string {
 	result := input
 
-	// Replace $(params.name) with task params
+	// Replace $(params.name) with task params (handles string, array[*], array[N], object.field)
 	for name, value := range task.Params {
-		placeholder := fmt.Sprintf("$(params.%s)", name)
-		result = strings.ReplaceAll(result, placeholder, value.String())
+		switch value.Type {
+		case types.ParamTypeArray:
+			// Handle $(params.name[*]) - expand to space-separated values
+			starPlaceholder := fmt.Sprintf("$(params.%s[*])", name)
+			result = strings.ReplaceAll(result, starPlaceholder, strings.Join(value.ArrayVal, " "))
+
+			// Handle $(params.name[N]) - expand to indexed value
+			for i, v := range value.ArrayVal {
+				indexPlaceholder := fmt.Sprintf("$(params.%s[%d])", name, i)
+				result = strings.ReplaceAll(result, indexPlaceholder, v)
+			}
+
+			// Handle out-of-bounds indices by finding remaining patterns and replacing with empty
+			for {
+				prefix := fmt.Sprintf("$(params.%s[", name)
+				startIdx := strings.Index(result, prefix)
+				if startIdx == -1 {
+					break
+				}
+				endIdx := strings.Index(result[startIdx:], "])")
+				if endIdx == -1 {
+					break
+				}
+				// Replace this out-of-bounds placeholder with empty string
+				placeholder := result[startIdx : startIdx+endIdx+2]
+				result = strings.Replace(result, placeholder, "", 1)
+			}
+
+		case types.ParamTypeObject:
+			// Handle $(params.name.field) - expand to field value
+			for field, fieldValue := range value.ObjectVal {
+				fieldPlaceholder := fmt.Sprintf("$(params.%s.%s)", name, field)
+				result = strings.ReplaceAll(result, fieldPlaceholder, fieldValue)
+			}
+
+			// Handle missing fields by finding remaining patterns and replacing with empty
+			for {
+				prefix := fmt.Sprintf("$(params.%s.", name)
+				startIdx := strings.Index(result, prefix)
+				if startIdx == -1 {
+					break
+				}
+				endIdx := strings.Index(result[startIdx:], ")")
+				if endIdx == -1 {
+					break
+				}
+				// Replace this missing field placeholder with empty string
+				placeholder := result[startIdx : startIdx+endIdx+1]
+				result = strings.Replace(result, placeholder, "", 1)
+			}
+
+		default:
+			// String param - simple replacement
+			placeholder := fmt.Sprintf("$(params.%s)", name)
+			result = strings.ReplaceAll(result, placeholder, value.String())
+		}
 	}
 
 	// Replace $(workspaces.name.path) with workspace paths
