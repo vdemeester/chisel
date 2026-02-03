@@ -1,0 +1,33 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: hello-pipeline
+spec:
+  params:
+    - name: greeting
+      type: string
+      default: "Hello from Pipeline!"
+  tasks:
+    - name: say-hello
+      taskSpec:
+        params:
+          - name: message
+            type: string
+        steps:
+          - name: greet
+            image: alpine:latest
+            script: |
+              #!/bin/sh
+              echo "$(params.message)"
+      params:
+        - name: message
+          value: "$(params.greeting)"
+    - name: say-goodbye
+      runAfter:
+        - say-hello
+      taskSpec:
+        steps:
+          - name: bye
+            image: alpine:latest
+            command: ["echo"]
+            args: ["Goodbye from Chisel!"]

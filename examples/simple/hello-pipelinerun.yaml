@@ -1,0 +1,46 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: hello-run
+spec:
+  pipelineSpec:
+    params:
+      - name: greeting
+        type: string
+        default: "Hello from PipelineRun!"
+    tasks:
+      - name: step-one
+        taskSpec:
+          steps:
+            - name: echo
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Step 1: Starting pipeline"
+                echo "Greeting: $(params.greeting)"
+        params:
+          - name: greeting
+            value: "$(params.greeting)"
+      - name: step-two
+        runAfter:
+          - step-one
+        taskSpec:
+          steps:
+            - name: echo
+              image: alpine:latest
+              command: ["sh", "-c"]
+              args: ["echo 'Step 2: Pipeline continuing...'"]
+      - name: step-three
+        runAfter:
+          - step-two
+        taskSpec:
+          steps:
+            - name: final
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Step 3: Pipeline complete!"
+                date
+  params:
+    - name: greeting
+      value: "Chisel is running Tekton locally!"

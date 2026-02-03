@@ -1,0 +1,16 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: hello
+spec:
+  params:
+    - name: message
+      type: string
+      default: "Hello from Chisel!"
+  steps:
+    - name: greet
+      image: alpine:latest
+      script: |
+        #!/bin/sh
+        echo "$(params.message)"
+        echo "Task completed at $(date)"
