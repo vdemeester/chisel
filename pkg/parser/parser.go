@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vdemeester/chisel/pkg/types"
 	"gopkg.in/yaml.v3"
+
+	"github.com/vdemeester/chisel/pkg/types"
 )
 
 // Options configures the parser

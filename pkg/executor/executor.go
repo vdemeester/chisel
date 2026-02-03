@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"dagger.io/dagger"
+
 	"github.com/vdemeester/chisel/pkg/types"
 )
 
