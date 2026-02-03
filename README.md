@@ -84,6 +84,12 @@ chisel run examples/simple/volumes-pipelinerun.yaml
 # Array and object parameter types
 chisel run examples/simple/params-pipelinerun.yaml
 
+# Workspace override for local development
+# First, run with clone (uses emptyDir workspace):
+chisel run examples/simple/workspace-override-pipelinerun.yaml
+# Then, run with local source (skips clone, uses your directory):
+chisel run examples/simple/workspace-override-pipelinerun.yaml --workspace=source:.
+
 # Pipeline that demonstrates failure handling
 chisel run examples/simple/failing-pipelinerun.yaml
 ```
