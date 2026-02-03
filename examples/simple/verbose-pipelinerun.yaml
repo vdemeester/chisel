@@ -1,0 +1,69 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: verbose-run
+spec:
+  pipelineSpec:
+    tasks:
+      - name: fetch
+        taskSpec:
+          steps:
+            - name: clone
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Cloning repository..."
+                echo "  → Fetching refs"
+                echo "  → Checking out main branch"
+                echo "  → HEAD is now at abc1234"
+                sleep 1
+      - name: build
+        runAfter:
+          - fetch
+        taskSpec:
+          steps:
+            - name: deps
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Installing dependencies..."
+                echo "  → go mod download"
+                echo "  → 47 packages installed"
+                sleep 0.5
+            - name: compile
+              image: golang:1.23-alpine
+              script: |
+                #!/bin/sh
+                echo "Building application..."
+                echo "  → go build -o app ./cmd/app"
+                echo "  → Binary size: 12.4 MB"
+                sleep 0.5
+            - name: test
+              image: golang:1.23-alpine
+              script: |
+                #!/bin/sh
+                echo "Running tests..."
+                echo "  === RUN   TestMain"
+                echo "  --- PASS: TestMain (0.01s)"
+                echo "  === RUN   TestHandler"
+                echo "  --- PASS: TestHandler (0.03s)"
+                echo "  PASS"
+                echo "  coverage: 84.2% of statements"
+                sleep 0.5
+      - name: package
+        runAfter:
+          - build
+        taskSpec:
+          steps:
+            - name: docker
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Building container image..."
+                echo "  → Step 1/5: FROM golang:1.23-alpine"
+                echo "  → Step 2/5: COPY go.mod go.sum ./"
+                echo "  → Step 3/5: RUN go mod download"
+                echo "  → Step 4/5: COPY . ."
+                echo "  → Step 5/5: RUN go build -o /app"
+                echo "  → Successfully built sha256:abc123def"
+                echo "  → Tagged myapp:latest"

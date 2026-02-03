@@ -1,0 +1,46 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: failing-run
+spec:
+  pipelineSpec:
+    tasks:
+      - name: setup
+        taskSpec:
+          steps:
+            - name: init
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Initializing..."
+                echo "Setup complete"
+      - name: build
+        runAfter:
+          - setup
+        taskSpec:
+          steps:
+            - name: compile
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Compiling code..."
+                echo "Build artifacts created"
+            - name: test
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Running tests..."
+                echo "Test 1: PASS"
+                echo "Test 2: PASS"
+                echo "Test 3: FAIL - assertion error"
+                exit 1
+      - name: deploy
+        runAfter:
+          - build
+        taskSpec:
+          steps:
+            - name: deploy
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Deploying... (this should not run)"

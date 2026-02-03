@@ -197,8 +197,19 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 		container = container.WithExec(cmd)
 	}
 
-	// Sync to execute and get output
-	_, err := container.Sync(ctx)
+	// Execute and capture output
+	stdout, err := container.Stdout(ctx)
+	if stdout != "" {
+		e.log.StepOutput(step.Name, stdout)
+	}
+
+	// Also capture stderr on failure
+	if err != nil {
+		stderr, _ := container.Stderr(ctx)
+		if stderr != "" {
+			e.log.StepOutput(step.Name, stderr)
+		}
+	}
 
 	e.log.StepEnd(step.Name, time.Since(stepStart), err)
 
