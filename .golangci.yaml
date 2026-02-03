@@ -5,21 +5,12 @@ run:
 
 linters:
   default: standard
-  enable:
-    - govet
-    - errcheck
-    - staticcheck
-    - unused
-    - gosimple
-    - ineffassign
 
 formatters:
   enable:
     - gofmt
     - goimports
   settings:
-    gofmt:
-      simplify: true
     goimports:
       local-prefixes:
         - github.com/vdemeester/chisel
