@@ -1,0 +1,68 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: parallel-demo
+spec:
+  pipelineSpec:
+    tasks:
+      # These three tasks have no dependencies - they run in PARALLEL
+      - name: lint
+        taskSpec:
+          steps:
+            - name: run-lint
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Running linter..."
+                sleep 2
+                echo "Lint complete: no issues found"
+      - name: test-unit
+        taskSpec:
+          steps:
+            - name: run-tests
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Running unit tests..."
+                sleep 2
+                echo "Tests passed: 42/42"
+      - name: test-integration
+        taskSpec:
+          steps:
+            - name: run-integration
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Running integration tests..."
+                sleep 2
+                echo "Integration tests passed: 8/8"
+
+      # This task waits for ALL three above to complete
+      - name: build
+        runAfter:
+          - lint
+          - test-unit
+          - test-integration
+        taskSpec:
+          steps:
+            - name: compile
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "All checks passed, building..."
+                sleep 1
+                echo "Build complete: myapp v1.0.0"
+
+      # Deploy runs after build
+      - name: deploy
+        runAfter:
+          - build
+        taskSpec:
+          steps:
+            - name: push
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Deploying to production..."
+                sleep 1
+                echo "Deployed successfully!"
