@@ -46,7 +46,7 @@ func New(ctx context.Context, opts Options) (*Executor, error) {
 // Close closes the Dagger client
 func (e *Executor) Close() {
 	if e.client != nil {
-		e.client.Close()
+		_ = e.client.Close()
 	}
 }
 
