@@ -78,14 +78,11 @@ func (e *Executor) Execute(ctx context.Context, pr *types.ResolvedPipelineRun) e
 
 	var pipelineErr error
 
-	// Execute tasks in order
-	// TODO: Implement parallel execution based on runAfter dependencies
-	for _, task := range pr.Tasks {
-		if err := e.executeTask(ctx, &task, pr); err != nil {
-			pipelineErr = fmt.Errorf("task %s failed: %w", task.Name, err)
-			break
-		}
-	}
+	// Build DAG and execute tasks in parallel where possible
+	dag := BuildDAG(pr.Tasks)
+	pipelineErr = dag.ExecuteParallel(func(task *types.ResolvedTask) error {
+		return e.executeTask(ctx, task, pr)
+	})
 
 	// Execute finally tasks (always run, even on error)
 	for _, task := range pr.FinallyTasks {
