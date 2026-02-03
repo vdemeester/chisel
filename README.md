@@ -50,6 +50,9 @@ chisel run pipelinerun.yaml --debug
 
 # Dry run (parse only, no execution)
 chisel run pipelinerun.yaml --dry-run
+
+# Output format (pretty, plain, json)
+chisel run pipelinerun.yaml --output=json
 ```
 
 ## Examples
@@ -61,35 +64,46 @@ See the `examples/` directory for sample Tekton YAML files.
 chisel run examples/simple/hello-task.yaml
 
 # Run a multi-step pipeline
-chisel run examples/simple/hello-pipelinerun.yaml --debug
+chisel run examples/simple/hello-pipelinerun.yaml
+
+# Parallel task execution (lint, test-unit, test-integration run concurrently)
+chisel run examples/simple/parallel-pipelinerun.yaml
+
+# Result passing between tasks
+chisel run examples/simple/results-pipelinerun.yaml
+
+# Volume sharing between steps
+chisel run examples/simple/volumes-pipelinerun.yaml
+
+# Pipeline that demonstrates failure handling
+chisel run examples/simple/failing-pipelinerun.yaml
 ```
 
 ## Supported Features
 
-### Phase 1 (MVP) - Current
+### Implemented
 
 - [x] Parse PipelineRun, Pipeline, Task YAML
-- [x] Execute steps (image, script, command/args, env)
-- [x] Basic parameter passing
-- [x] Sequential task execution
+- [x] Execute steps (image, script, command/args, env, workingDir)
+- [x] Parameter passing (string type)
 - [x] Inline taskSpec/pipelineSpec support
+- [x] Parallel task execution (DAG-based, respects runAfter)
+- [x] Result capture and passing between tasks (via /tekton/results/)
+- [x] Volumes (emptyDir, configMap, secret) with step volumeMounts
+- [x] Workspaces (emptyDir, local directory, PVC)
+- [x] Finally tasks
+- [x] Structured logging (pretty, plain, JSON output modes)
+- [x] Step stdout/stderr capture and display
+- [x] Variable substitution: `$(params.*)`, `$(workspaces.*.path)`, `$(tasks.*.results.*)`, `$(context.*)`
 
-### Phase 2 (Planned)
+### Planned
 
-- [ ] Full parameter types (string, array, object)
-- [ ] Result passing between tasks
-- [ ] Complete variable substitution
-- [ ] Multiple workspace types
-- [ ] Parallel task execution (runAfter)
-- [ ] Finally tasks
-
-### Phase 3 (Planned)
-
-- [ ] Sidecar support
+- [ ] Array and object parameter types
+- [ ] Sidecar execution
 - [ ] Conditional execution (when)
-- [ ] Secret management
-- [ ] Code generation mode
+- [ ] Step timeout and retry
 - [ ] Matrix builds
+- [ ] stepTemplate defaults
 
 ## Architecture
 

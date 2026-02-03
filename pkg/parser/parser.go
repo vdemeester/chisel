@@ -144,6 +144,7 @@ type TektonTaskSpec struct {
 	Steps      []TektonStep      `yaml:"steps"`
 	Sidecars   []TektonSidecar   `yaml:"sidecars"`
 	Results    []TektonResult    `yaml:"results"`
+	Volumes    []TektonVolume    `yaml:"volumes"`
 	Workspaces []struct {
 		Name      string `yaml:"name"`
 		MountPath string `yaml:"mountPath"`
@@ -152,13 +153,44 @@ type TektonTaskSpec struct {
 
 // TektonStep represents a step in a Task
 type TektonStep struct {
-	Name       string         `yaml:"name"`
-	Image      string         `yaml:"image"`
-	Command    []string       `yaml:"command"`
-	Args       []string       `yaml:"args"`
-	Script     string         `yaml:"script"`
-	Env        []TektonEnvVar `yaml:"env"`
-	WorkingDir string         `yaml:"workingDir"`
+	Name         string              `yaml:"name"`
+	Image        string              `yaml:"image"`
+	Command      []string            `yaml:"command"`
+	Args         []string            `yaml:"args"`
+	Script       string              `yaml:"script"`
+	Env          []TektonEnvVar      `yaml:"env"`
+	WorkingDir   string              `yaml:"workingDir"`
+	VolumeMounts []TektonVolumeMount `yaml:"volumeMounts"`
+}
+
+// TektonVolume represents a volume in a Task
+type TektonVolume struct {
+	Name     string `yaml:"name"`
+	EmptyDir *struct {
+		Medium string `yaml:"medium"`
+	} `yaml:"emptyDir"`
+	ConfigMap *struct {
+		Name  string `yaml:"name"`
+		Items []struct {
+			Key  string `yaml:"key"`
+			Path string `yaml:"path"`
+		} `yaml:"items"`
+	} `yaml:"configMap"`
+	Secret *struct {
+		SecretName string `yaml:"secretName"`
+		Items      []struct {
+			Key  string `yaml:"key"`
+			Path string `yaml:"path"`
+		} `yaml:"items"`
+	} `yaml:"secret"`
+}
+
+// TektonVolumeMount represents a volume mount in a Step
+type TektonVolumeMount struct {
+	Name      string `yaml:"name"`
+	MountPath string `yaml:"mountPath"`
+	SubPath   string `yaml:"subPath"`
+	ReadOnly  bool   `yaml:"readOnly"`
 }
 
 // TektonSidecar represents a sidecar in a Task
@@ -498,6 +530,11 @@ func (p *Parser) resolveTask(pt TektonPipelineTask, baseDir string, pipelinePara
 		})
 	}
 
+	// Convert volumes
+	for _, vol := range taskSpec.Volumes {
+		resolved.Volumes = append(resolved.Volumes, convertVolume(vol))
+	}
+
 	return resolved, nil
 }
 
@@ -506,14 +543,26 @@ func convertStep(step TektonStep) types.Step {
 	for _, e := range step.Env {
 		env[e.Name] = e.Value
 	}
+
+	var volumeMounts []types.VolumeMount
+	for _, vm := range step.VolumeMounts {
+		volumeMounts = append(volumeMounts, types.VolumeMount{
+			Name:      vm.Name,
+			MountPath: vm.MountPath,
+			SubPath:   vm.SubPath,
+			ReadOnly:  vm.ReadOnly,
+		})
+	}
+
 	return types.Step{
-		Name:       step.Name,
-		Image:      step.Image,
-		Command:    step.Command,
-		Args:       step.Args,
-		Script:     step.Script,
-		Env:        env,
-		WorkingDir: step.WorkingDir,
+		Name:         step.Name,
+		Image:        step.Image,
+		Command:      step.Command,
+		Args:         step.Args,
+		Script:       step.Script,
+		Env:          env,
+		WorkingDir:   step.WorkingDir,
+		VolumeMounts: volumeMounts,
 	}
 }
 
@@ -534,6 +583,48 @@ func convertSidecar(sidecar TektonSidecar) types.Sidecar {
 		Env:     env,
 		Ports:   ports,
 	}
+}
+
+func convertVolume(vol TektonVolume) types.Volume {
+	v := types.Volume{
+		Name: vol.Name,
+	}
+
+	if vol.EmptyDir != nil {
+		v.EmptyDir = &types.EmptyDirVolumeSource{
+			Medium: vol.EmptyDir.Medium,
+		}
+	}
+
+	if vol.ConfigMap != nil {
+		var items []types.KeyToPath
+		for _, item := range vol.ConfigMap.Items {
+			items = append(items, types.KeyToPath{
+				Key:  item.Key,
+				Path: item.Path,
+			})
+		}
+		v.ConfigMap = &types.ConfigMapVolumeSource{
+			Name:  vol.ConfigMap.Name,
+			Items: items,
+		}
+	}
+
+	if vol.Secret != nil {
+		var items []types.KeyToPath
+		for _, item := range vol.Secret.Items {
+			items = append(items, types.KeyToPath{
+				Key:  item.Key,
+				Path: item.Path,
+			})
+		}
+		v.Secret = &types.SecretVolumeSource{
+			SecretName: vol.Secret.SecretName,
+			Items:      items,
+		}
+	}
+
+	return v
 }
 
 func parseParamValue(value interface{}) types.ParamValue {
