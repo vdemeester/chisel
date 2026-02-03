@@ -1,0 +1,112 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: workspace-override-example
+spec:
+  pipelineSpec:
+    description: |
+      Example pipeline that clones chisel and runs build, lint, test.
+
+      To use with local source instead of cloning:
+        chisel run examples/simple/workspace-override-pipelinerun.yaml --workspace=source:.
+
+      This will skip the clone task and use your local directory instead.
+    params:
+      - name: repo-url
+        type: string
+        default: "https://github.com/vdemeester/chisel.git"
+      - name: revision
+        type: string
+        default: "main"
+    workspaces:
+      - name: source
+    tasks:
+      - name: clone
+        taskSpec:
+          workspaces:
+            - name: source
+          params:
+            - name: url
+            - name: revision
+          steps:
+            - name: clone
+              image: alpine/git:latest
+              workingDir: $(workspaces.source.path)
+              script: |
+                if [ -f go.mod ]; then
+                  echo "Source already present (likely from --workspace override), skipping clone"
+                  exit 0
+                fi
+                git clone --depth 1 --branch $(params.revision) $(params.url) .
+                echo "Cloned $(params.url) at $(params.revision)"
+        params:
+          - name: url
+            value: "$(params.repo-url)"
+          - name: revision
+            value: "$(params.revision)"
+        workspaces:
+          - name: source
+            workspace: source
+
+      - name: build
+        runAfter:
+          - clone
+        taskSpec:
+          workspaces:
+            - name: source
+          steps:
+            - name: build
+              image: golang:1.23-alpine
+              workingDir: $(workspaces.source.path)
+              script: |
+                echo "Building chisel..."
+                go build -v ./...
+                echo "Build successful!"
+        workspaces:
+          - name: source
+            workspace: source
+
+      - name: lint
+        runAfter:
+          - clone
+        taskSpec:
+          workspaces:
+            - name: source
+          steps:
+            - name: lint
+              image: golangci/golangci-lint:latest
+              workingDir: $(workspaces.source.path)
+              script: |
+                echo "Running linter..."
+                golangci-lint run --timeout 5m ./...
+                echo "Lint passed!"
+        workspaces:
+          - name: source
+            workspace: source
+
+      - name: test
+        runAfter:
+          - build
+        taskSpec:
+          workspaces:
+            - name: source
+          steps:
+            - name: test
+              image: golang:1.23-alpine
+              workingDir: $(workspaces.source.path)
+              script: |
+                echo "Running tests..."
+                go test -v ./...
+                echo "Tests passed!"
+        workspaces:
+          - name: source
+            workspace: source
+
+  params:
+    - name: repo-url
+      value: "https://github.com/vdemeester/chisel.git"
+    - name: revision
+      value: "main"
+  workspaces:
+    - name: source
+      emptyDir: {}
