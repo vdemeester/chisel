@@ -49,6 +49,9 @@ type ResolvedTask struct {
 
 	// Sidecars are auxiliary containers
 	Sidecars []Sidecar
+
+	// Volumes are volumes that can be mounted by steps
+	Volumes []Volume
 }
 
 // Step represents a single step within a task
@@ -73,6 +76,9 @@ type Step struct {
 
 	// WorkingDir is the working directory
 	WorkingDir string
+
+	// VolumeMounts are volumes to mount into the container
+	VolumeMounts []VolumeMount
 }
 
 // Sidecar represents a sidecar container
@@ -150,3 +156,73 @@ const (
 	WorkspaceTypeLocal    WorkspaceType = "local"
 	WorkspaceTypePVC      WorkspaceType = "pvc"
 )
+
+// Volume defines a volume that can be mounted by steps in a task.
+type Volume struct {
+	// Name is the volume name, referenced by VolumeMounts
+	Name string
+
+	// VolumeSource defines where the volume comes from
+	VolumeSource
+}
+
+// VolumeSource represents the source of a volume.
+// Only one of its members may be specified.
+type VolumeSource struct {
+	// EmptyDir represents an empty directory
+	EmptyDir *EmptyDirVolumeSource
+
+	// ConfigMap represents a configMap that should populate this volume
+	ConfigMap *ConfigMapVolumeSource
+
+	// Secret represents a secret that should populate this volume
+	Secret *SecretVolumeSource
+}
+
+// EmptyDirVolumeSource represents an empty directory volume.
+type EmptyDirVolumeSource struct {
+	// Medium is the storage medium (empty string for default, "Memory" for tmpfs)
+	Medium string
+}
+
+// ConfigMapVolumeSource represents a configMap volume.
+type ConfigMapVolumeSource struct {
+	// Name of the configMap
+	Name string
+
+	// Items are specific keys to project (if empty, all keys are projected)
+	Items []KeyToPath
+}
+
+// SecretVolumeSource represents a secret volume.
+type SecretVolumeSource struct {
+	// SecretName is the name of the secret
+	SecretName string
+
+	// Items are specific keys to project (if empty, all keys are projected)
+	Items []KeyToPath
+}
+
+// KeyToPath maps a key to a file path.
+type KeyToPath struct {
+	// Key is the key to project
+	Key string
+
+	// Path is the relative path of the file
+	Path string
+}
+
+// VolumeMount describes a mounting of a volume within a container.
+type VolumeMount struct {
+	// Name must match the Name of a Volume
+	Name string
+
+	// MountPath is the path within the container
+	MountPath string
+
+	// SubPath is an optional subpath within the volume
+	SubPath string
+
+	// ReadOnly defaults to false
+	ReadOnly bool
+}

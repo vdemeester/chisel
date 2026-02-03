@@ -151,6 +151,9 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 		}
 	}
 
+	// Mount volumes
+	container = e.mountVolumes(container, step, task)
+
 	// Set environment variables
 	for name, value := range step.Env {
 		resolvedValue := e.substituteVariables(value, task, pr)
@@ -262,4 +265,44 @@ func (e *Executor) substituteVariables(input string, task *types.ResolvedTask, p
 	result = strings.ReplaceAll(result, "$(context.task.name)", task.TaskName)
 
 	return result
+}
+
+// mountVolumes mounts task volumes into the container based on step's volumeMounts.
+func (e *Executor) mountVolumes(container *dagger.Container, step *types.Step, task *types.ResolvedTask) *dagger.Container {
+	if len(step.VolumeMounts) == 0 || len(task.Volumes) == 0 {
+		return container
+	}
+
+	// Parse task volumes into a lookup map
+	volumes := parseVolumes(task.Volumes)
+
+	for _, mount := range step.VolumeMounts {
+		vol, ok := volumes[mount.Name]
+		if !ok {
+			continue
+		}
+
+		switch vol.Type {
+		case VolumeTypeEmptyDir:
+			// EmptyDir is just an empty directory - use a cache volume for persistence within the run
+			cache := e.client.CacheVolume(fmt.Sprintf("emptydir-%s-%s", task.Name, mount.Name))
+			container = container.WithMountedCache(mount.MountPath, cache)
+
+		case VolumeTypeConfigMap:
+			// ConfigMap - in local execution, we'd need to read from a local file
+			// For now, create an empty directory as placeholder
+			// TODO: Support reading configmaps from local files or environment
+			dir := e.client.Directory()
+			container = container.WithDirectory(mount.MountPath, dir)
+
+		case VolumeTypeSecret:
+			// Secret - in local execution, we'd need to read from a local file
+			// For now, create an empty directory as placeholder
+			// TODO: Support reading secrets from local files or environment
+			dir := e.client.Directory()
+			container = container.WithDirectory(mount.MountPath, dir)
+		}
+	}
+
+	return container
 }

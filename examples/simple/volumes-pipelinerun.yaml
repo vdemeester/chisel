@@ -1,0 +1,34 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: volumes-demo
+spec:
+  pipelineSpec:
+    tasks:
+      - name: shared-data
+        taskSpec:
+          volumes:
+            - name: temp-storage
+              emptyDir: {}
+          steps:
+            - name: write-data
+              image: alpine:latest
+              volumeMounts:
+                - name: temp-storage
+                  mountPath: /data
+              script: |
+                #!/bin/sh
+                echo "Writing data to shared volume..."
+                echo "Hello from step 1" > /data/message.txt
+                echo "$(date)" > /data/timestamp.txt
+                ls -la /data/
+            - name: read-data
+              image: alpine:latest
+              volumeMounts:
+                - name: temp-storage
+                  mountPath: /data
+              script: |
+                #!/bin/sh
+                echo "Reading data from shared volume..."
+                cat /data/message.txt
+                cat /data/timestamp.txt
