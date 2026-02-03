@@ -53,6 +53,12 @@ chisel run pipelinerun.yaml --dry-run
 
 # Output format (pretty, plain, json)
 chisel run pipelinerun.yaml --output=json
+
+# Inject local directory as workspace
+chisel run build-task.yaml --workspace=source:.
+
+# Multiple workspace overrides
+chisel run pipeline.yaml -w source:. -w config:./config
 ```
 
 ## Examples
@@ -75,6 +81,9 @@ chisel run examples/simple/results-pipelinerun.yaml
 # Volume sharing between steps
 chisel run examples/simple/volumes-pipelinerun.yaml
 
+# Array and object parameter types
+chisel run examples/simple/params-pipelinerun.yaml
+
 # Pipeline that demonstrates failure handling
 chisel run examples/simple/failing-pipelinerun.yaml
 ```
@@ -85,7 +94,7 @@ chisel run examples/simple/failing-pipelinerun.yaml
 
 - [x] Parse PipelineRun, Pipeline, Task YAML
 - [x] Execute steps (image, script, command/args, env, workingDir)
-- [x] Parameter passing (string type)
+- [x] Parameter passing (string, array, object types)
 - [x] Inline taskSpec/pipelineSpec support
 - [x] Parallel task execution (DAG-based, respects runAfter)
 - [x] Result capture and passing between tasks (via /tekton/results/)
@@ -94,11 +103,10 @@ chisel run examples/simple/failing-pipelinerun.yaml
 - [x] Finally tasks
 - [x] Structured logging (pretty, plain, JSON output modes)
 - [x] Step stdout/stderr capture and display
-- [x] Variable substitution: `$(params.*)`, `$(workspaces.*.path)`, `$(tasks.*.results.*)`, `$(context.*)`
+- [x] Variable substitution: `$(params.*)`, `$(params.array[*])`, `$(params.array[N])`, `$(params.object.field)`, `$(workspaces.*.path)`, `$(tasks.*.results.*)`, `$(context.*)`
+- [x] CLI workspace override (`--workspace/-w` flag for local development)
 
 ### Planned
-
-- [ ] Array and object parameter types
 - [ ] Sidecar execution
 - [ ] Conditional execution (when)
 - [ ] Step timeout and retry
