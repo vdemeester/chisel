@@ -41,6 +41,7 @@ var (
 	debug      bool
 	dryRun     bool
 	outputMode string
+	workspaces []string
 )
 
 func init() {
@@ -48,6 +49,7 @@ func init() {
 	runCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Enable debug output")
 	runCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Parse and validate without executing")
 	runCmd.Flags().StringVarP(&outputMode, "output", "o", "", "Output mode: pretty, plain, json (default: auto-detect)")
+	runCmd.Flags().StringArrayVarP(&workspaces, "workspace", "w", nil, "Override workspace binding (format: name:path, can be repeated)")
 }
 
 func runPipeline(cmd *cobra.Command, args []string) error {
@@ -83,6 +85,22 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	resolved, err := p.ParsePipelineRun(pipelineRunPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse PipelineRun: %w", err)
+	}
+
+	// Apply workspace overrides from CLI flags
+	if len(workspaces) > 0 {
+		wsOverrides, err := parseWorkspaceBindings(workspaces)
+		if err != nil {
+			return fmt.Errorf("invalid workspace binding: %w", err)
+		}
+		if err := applyWorkspaceOverrides(resolved, wsOverrides); err != nil {
+			return fmt.Errorf("failed to apply workspace overrides: %w", err)
+		}
+		if debug {
+			for name, path := range wsOverrides {
+				log.Debug("Workspace override", "name", name, "path", path)
+			}
+		}
 	}
 
 	if debug {
