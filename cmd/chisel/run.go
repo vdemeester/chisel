@@ -11,6 +11,7 @@ import (
 
 	"github.com/vdemeester/chisel/pkg/executor"
 	"github.com/vdemeester/chisel/pkg/parser"
+	"github.com/vdemeester/chisel/pkg/ui"
 )
 
 var runCmd = &cobra.Command{
@@ -35,15 +36,17 @@ Examples:
 }
 
 var (
-	tasksDir string
-	debug    bool
-	dryRun   bool
+	tasksDir   string
+	debug      bool
+	dryRun     bool
+	outputMode string
 )
 
 func init() {
 	runCmd.Flags().StringVarP(&tasksDir, "tasks", "t", "", "Directory containing Task definitions")
 	runCmd.Flags().BoolVarP(&debug, "debug", "d", false, "Enable debug output")
 	runCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Parse and validate without executing")
+	runCmd.Flags().StringVarP(&outputMode, "output", "o", "", "Output mode: pretty, plain, json (default: auto-detect)")
 }
 
 func runPipeline(cmd *cobra.Command, args []string) error {
@@ -59,6 +62,15 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		cancel()
 	}()
 
+	// Determine output mode
+	var mode ui.OutputMode
+	if outputMode != "" {
+		mode = ui.ParseOutputMode(outputMode)
+	} else {
+		mode = ui.DetectOutputMode()
+	}
+	log := ui.NewLogger(mode, os.Stdout)
+
 	pipelineRunPath := args[0]
 
 	// Parse the PipelineRun and resolve references
@@ -73,22 +85,23 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	}
 
 	if debug {
-		fmt.Printf("Parsed PipelineRun: %s\n", resolved.Name)
-		fmt.Printf("Pipeline: %s\n", resolved.PipelineName)
-		fmt.Printf("Tasks: %d\n", len(resolved.Tasks))
+		log.Debug("Parsed PipelineRun", "name", resolved.Name)
+		log.Debug("Pipeline", "name", resolved.PipelineName)
+		log.Debug("Tasks", "count", len(resolved.Tasks))
 		for _, t := range resolved.Tasks {
-			fmt.Printf("  - %s (%d steps)\n", t.Name, len(t.Steps))
+			log.Debug("Task", "name", t.Name, "steps", len(t.Steps))
 		}
 	}
 
 	if dryRun {
-		fmt.Println("Dry run complete. Pipeline parsed successfully.")
+		log.Info("Dry run complete. Pipeline parsed successfully.")
 		return nil
 	}
 
 	// Execute via Dagger
 	exec, err := executor.New(ctx, executor.Options{
-		Debug: debug,
+		Debug:  debug,
+		Logger: log,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create executor: %w", err)
@@ -99,6 +112,5 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("execution failed: %w", err)
 	}
 
-	fmt.Println("Pipeline completed successfully.")
 	return nil
 }

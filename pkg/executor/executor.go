@@ -5,22 +5,27 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"dagger.io/dagger"
 
 	"github.com/vdemeester/chisel/pkg/types"
+	"github.com/vdemeester/chisel/pkg/ui"
 )
 
 // Options configures the executor
 type Options struct {
 	// Debug enables debug output
 	Debug bool
+	// Logger for structured output
+	Logger ui.Logger
 }
 
 // Executor executes resolved pipelines via Dagger
 type Executor struct {
 	client *dagger.Client
 	opts   Options
+	log    ui.Logger
 
 	// workspaces maps workspace names to directories
 	workspaces map[string]*dagger.Directory
@@ -36,9 +41,15 @@ func New(ctx context.Context, opts Options) (*Executor, error) {
 		return nil, fmt.Errorf("failed to connect to Dagger: %w", err)
 	}
 
+	log := opts.Logger
+	if log == nil {
+		log = ui.NewLogger(ui.DetectOutputMode(), nil)
+	}
+
 	return &Executor{
 		client:     client,
 		opts:       opts,
+		log:        log,
 		workspaces: make(map[string]*dagger.Directory),
 		results:    make(map[string]map[string]string),
 	}, nil
@@ -53,6 +64,9 @@ func (e *Executor) Close() {
 
 // Execute runs the resolved pipeline
 func (e *Executor) Execute(ctx context.Context, pr *types.ResolvedPipelineRun) error {
+	pipelineStart := time.Now()
+	e.log.PipelineStart(pr.Name)
+
 	// Initialize workspaces
 	for name, binding := range pr.Workspaces {
 		dir, err := e.createWorkspace(ctx, binding)
@@ -62,35 +76,27 @@ func (e *Executor) Execute(ctx context.Context, pr *types.ResolvedPipelineRun) e
 		e.workspaces[name] = dir
 	}
 
+	var pipelineErr error
+
 	// Execute tasks in order
 	// TODO: Implement parallel execution based on runAfter dependencies
 	for _, task := range pr.Tasks {
-		if e.opts.Debug {
-			fmt.Printf("Executing task: %s\n", task.Name)
-		}
-
 		if err := e.executeTask(ctx, &task, pr); err != nil {
-			return fmt.Errorf("task %s failed: %w", task.Name, err)
-		}
-
-		if e.opts.Debug {
-			fmt.Printf("Task %s completed\n", task.Name)
+			pipelineErr = fmt.Errorf("task %s failed: %w", task.Name, err)
+			break
 		}
 	}
 
-	// Execute finally tasks (always run, even on error - simplified for now)
+	// Execute finally tasks (always run, even on error)
 	for _, task := range pr.FinallyTasks {
-		if e.opts.Debug {
-			fmt.Printf("Executing finally task: %s\n", task.Name)
-		}
-
 		if err := e.executeTask(ctx, &task, pr); err != nil {
 			// Log but don't fail on finally task errors
-			fmt.Printf("Warning: finally task %s failed: %v\n", task.Name, err)
+			e.log.Warn("finally task failed", "task", task.Name, "error", err)
 		}
 	}
 
-	return nil
+	e.log.PipelineEnd(pr.Name, time.Since(pipelineStart), pipelineErr)
+	return pipelineErr
 }
 
 func (e *Executor) createWorkspace(ctx context.Context, binding types.WorkspaceBinding) (*dagger.Directory, error) {
@@ -113,24 +119,30 @@ func (e *Executor) createWorkspace(ctx context.Context, binding types.WorkspaceB
 }
 
 func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) error {
+	taskStart := time.Now()
+	e.log.TaskStart(task.Name)
+
 	// Initialize results storage for this task
 	e.results[task.Name] = make(map[string]string)
 
-	// Execute each step sequentially
-	for i, step := range task.Steps {
-		if e.opts.Debug {
-			fmt.Printf("  Step %d: %s\n", i+1, step.Name)
-		}
+	var taskErr error
 
+	// Execute each step sequentially
+	for _, step := range task.Steps {
 		if err := e.executeStep(ctx, &step, task, pr); err != nil {
-			return fmt.Errorf("step %s failed: %w", step.Name, err)
+			taskErr = fmt.Errorf("step %s failed: %w", step.Name, err)
+			break
 		}
 	}
 
-	return nil
+	e.log.TaskEnd(task.Name, time.Since(taskStart), taskErr)
+	return taskErr
 }
 
 func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) error {
+	stepStart := time.Now()
+	e.log.StepStart(step.Name, step.Image)
+
 	// Create container from image
 	container := e.client.Container().From(step.Image)
 
@@ -187,6 +199,9 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 
 	// Sync to execute and get output
 	_, err := container.Sync(ctx)
+
+	e.log.StepEnd(step.Name, time.Since(stepStart), err)
+
 	if err != nil {
 		return err
 	}
