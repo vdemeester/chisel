@@ -31,8 +31,9 @@ Examples:
 
   # Run with debug output
   chisel run pipelinerun.yaml --debug`,
-	Args: cobra.ExactArgs(1),
-	RunE: runPipeline,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE:         runPipeline,
 }
 
 var (
