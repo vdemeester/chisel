@@ -45,15 +45,19 @@ func NewLogger(mode OutputMode, w io.Writer) Logger {
 }
 
 // PrettyLogger outputs colored, hierarchical logs.
+// Uses fixed indentation levels to handle parallel execution correctly.
 type PrettyLogger struct {
-	w     io.Writer
-	mu    *sync.Mutex
-	depth int
+	w  io.Writer
+	mu *sync.Mutex
 }
 
-func (l *PrettyLogger) indent() string {
-	return strings.Repeat("  ", l.depth)
-}
+// Fixed indentation levels for consistent output during parallel execution
+const (
+	indentPipeline = ""
+	indentTask     = "  "
+	indentStep     = "    "
+	indentOutput   = "      "
+)
 
 func (l *PrettyLogger) write(format string, args ...any) {
 	l.mu.Lock()
@@ -64,12 +68,10 @@ func (l *PrettyLogger) write(format string, args ...any) {
 func (l *PrettyLogger) PipelineStart(name string) {
 	symbol := StyleRunning.Render(SymbolRunning)
 	label := StyleLabel.Render("Pipeline:")
-	l.write("%s%s %s %s\n", l.indent(), symbol, label, name)
-	l.depth++
+	l.write("%s%s %s %s\n", indentPipeline, symbol, label, name)
 }
 
 func (l *PrettyLogger) PipelineEnd(name string, duration time.Duration, err error) {
-	l.depth--
 	var symbol, status string
 	if err != nil {
 		symbol = StyleFailure.Render(SymbolFailure)
@@ -79,18 +81,16 @@ func (l *PrettyLogger) PipelineEnd(name string, duration time.Duration, err erro
 		status = StyleSuccess.Render("Pipeline completed")
 	}
 	dur := StyleDuration.Render(fmt.Sprintf("[%s]", formatDuration(duration)))
-	l.write("%s%s %s %s\n", l.indent(), symbol, status, dur)
+	l.write("%s%s %s %s\n", indentPipeline, symbol, status, dur)
 }
 
 func (l *PrettyLogger) TaskStart(name string) {
 	symbol := StyleRunning.Render(SymbolRunning)
 	label := StyleLabel.Render("Task:")
-	l.write("%s%s %s %s\n", l.indent(), symbol, label, name)
-	l.depth++
+	l.write("%s%s %s %s\n", indentTask, symbol, label, name)
 }
 
 func (l *PrettyLogger) TaskEnd(name string, duration time.Duration, err error) {
-	l.depth--
 	var symbol string
 	if err != nil {
 		symbol = StyleFailure.Render(SymbolFailure)
@@ -101,9 +101,9 @@ func (l *PrettyLogger) TaskEnd(name string, duration time.Duration, err error) {
 	dur := StyleDuration.Render(fmt.Sprintf("[%s]", formatDuration(duration)))
 	if err != nil {
 		errMsg := StyleError.Render("ERROR")
-		l.write("%s%s %s %s %s %s\n", l.indent(), symbol, label, name, dur, errMsg)
+		l.write("%s%s %s %s %s %s\n", indentTask, symbol, label, name, dur, errMsg)
 	} else {
-		l.write("%s%s %s %s %s\n", l.indent(), symbol, label, name, dur)
+		l.write("%s%s %s %s %s\n", indentTask, symbol, label, name, dur)
 	}
 }
 
@@ -111,12 +111,10 @@ func (l *PrettyLogger) StepStart(name string, image string) {
 	symbol := StyleRunning.Render(SymbolRunning)
 	label := StyleLabel.Render("Step:")
 	imageInfo := StyleDim.Render(fmt.Sprintf("(%s)", image))
-	l.write("%s%s %s %s %s\n", l.indent(), symbol, label, name, imageInfo)
-	l.depth++
+	l.write("%s%s %s %s %s\n", indentStep, symbol, label, name, imageInfo)
 }
 
 func (l *PrettyLogger) StepEnd(name string, duration time.Duration, err error) {
-	l.depth--
 	var symbol string
 	if err != nil {
 		symbol = StyleFailure.Render(SymbolFailure)
@@ -127,9 +125,9 @@ func (l *PrettyLogger) StepEnd(name string, duration time.Duration, err error) {
 	dur := StyleDuration.Render(fmt.Sprintf("[%s]", formatDuration(duration)))
 	if err != nil {
 		errMsg := StyleError.Render("ERROR")
-		l.write("%s%s %s %s %s %s\n", l.indent(), symbol, label, name, dur, errMsg)
+		l.write("%s%s %s %s %s %s\n", indentStep, symbol, label, name, dur, errMsg)
 	} else {
-		l.write("%s%s %s %s %s\n", l.indent(), symbol, label, name, dur)
+		l.write("%s%s %s %s %s\n", indentStep, symbol, label, name, dur)
 	}
 }
 
@@ -140,39 +138,35 @@ func (l *PrettyLogger) StepOutput(name string, output string) {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	for _, line := range lines {
 		arrow := StyleDim.Render(SymbolArrow)
-		l.write("%s  %s %s\n", l.indent(), arrow, line)
+		l.write("%s%s %s\n", indentOutput, arrow, line)
 	}
 }
 
 func (l *PrettyLogger) Debug(msg string, attrs ...any) {
 	formatted := formatAttrs(msg, attrs...)
-	l.write("%s%s\n", l.indent(), StyleDebug.Render(formatted))
+	l.write("%s%s\n", indentTask, StyleDebug.Render(formatted))
 }
 
 func (l *PrettyLogger) Info(msg string, attrs ...any) {
 	formatted := formatAttrs(msg, attrs...)
-	l.write("%s%s\n", l.indent(), StyleInfo.Render(formatted))
+	l.write("%s%s\n", indentTask, StyleInfo.Render(formatted))
 }
 
 func (l *PrettyLogger) Warn(msg string, attrs ...any) {
 	formatted := formatAttrs(msg, attrs...)
-	l.write("%s%s\n", l.indent(), StyleWarn.Render(formatted))
+	l.write("%s%s\n", indentTask, StyleWarn.Render(formatted))
 }
 
 func (l *PrettyLogger) Error(msg string, attrs ...any) {
 	formatted := formatAttrs(msg, attrs...)
-	l.write("%s%s\n", l.indent(), StyleError.Render(formatted))
+	l.write("%s%s\n", indentTask, StyleError.Render(formatted))
 }
 
 // PlainLogger outputs simple text without colors.
+// Uses fixed indentation levels to handle parallel execution correctly.
 type PlainLogger struct {
-	w     io.Writer
-	mu    *sync.Mutex
-	depth int
-}
-
-func (l *PlainLogger) indent() string {
-	return strings.Repeat("  ", l.depth)
+	w  io.Writer
+	mu *sync.Mutex
 }
 
 func (l *PlainLogger) write(format string, args ...any) {
@@ -182,44 +176,38 @@ func (l *PlainLogger) write(format string, args ...any) {
 }
 
 func (l *PlainLogger) PipelineStart(name string) {
-	l.write("%s* Pipeline: %s\n", l.indent(), name)
-	l.depth++
+	l.write("* Pipeline: %s\n", name)
 }
 
 func (l *PlainLogger) PipelineEnd(name string, duration time.Duration, err error) {
-	l.depth--
 	if err != nil {
-		l.write("%sX Pipeline failed [%s]\n", l.indent(), formatDuration(duration))
+		l.write("X Pipeline failed [%s]\n", formatDuration(duration))
 	} else {
-		l.write("%s+ Pipeline completed [%s]\n", l.indent(), formatDuration(duration))
+		l.write("+ Pipeline completed [%s]\n", formatDuration(duration))
 	}
 }
 
 func (l *PlainLogger) TaskStart(name string) {
-	l.write("%s* Task: %s\n", l.indent(), name)
-	l.depth++
+	l.write("%s* Task: %s\n", indentTask, name)
 }
 
 func (l *PlainLogger) TaskEnd(name string, duration time.Duration, err error) {
-	l.depth--
 	if err != nil {
-		l.write("%sX Task: %s [%s] ERROR\n", l.indent(), name, formatDuration(duration))
+		l.write("%sX Task: %s [%s] ERROR\n", indentTask, name, formatDuration(duration))
 	} else {
-		l.write("%s+ Task: %s [%s]\n", l.indent(), name, formatDuration(duration))
+		l.write("%s+ Task: %s [%s]\n", indentTask, name, formatDuration(duration))
 	}
 }
 
 func (l *PlainLogger) StepStart(name string, image string) {
-	l.write("%s* Step: %s (%s)\n", l.indent(), name, image)
-	l.depth++
+	l.write("%s* Step: %s (%s)\n", indentStep, name, image)
 }
 
 func (l *PlainLogger) StepEnd(name string, duration time.Duration, err error) {
-	l.depth--
 	if err != nil {
-		l.write("%sX Step: %s [%s] ERROR\n", l.indent(), name, formatDuration(duration))
+		l.write("%sX Step: %s [%s] ERROR\n", indentStep, name, formatDuration(duration))
 	} else {
-		l.write("%s+ Step: %s [%s]\n", l.indent(), name, formatDuration(duration))
+		l.write("%s+ Step: %s [%s]\n", indentStep, name, formatDuration(duration))
 	}
 }
 
@@ -229,28 +217,28 @@ func (l *PlainLogger) StepOutput(name string, output string) {
 	}
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	for _, line := range lines {
-		l.write("%s  > %s\n", l.indent(), line)
+		l.write("%s> %s\n", indentOutput, line)
 	}
 }
 
 func (l *PlainLogger) Debug(msg string, attrs ...any) {
 	formatted := formatAttrs(msg, attrs...)
-	l.write("%s[DEBUG] %s\n", l.indent(), formatted)
+	l.write("%s[DEBUG] %s\n", indentTask, formatted)
 }
 
 func (l *PlainLogger) Info(msg string, attrs ...any) {
 	formatted := formatAttrs(msg, attrs...)
-	l.write("%s[INFO] %s\n", l.indent(), formatted)
+	l.write("%s[INFO] %s\n", indentTask, formatted)
 }
 
 func (l *PlainLogger) Warn(msg string, attrs ...any) {
 	formatted := formatAttrs(msg, attrs...)
-	l.write("%s[WARN] %s\n", l.indent(), formatted)
+	l.write("%s[WARN] %s\n", indentTask, formatted)
 }
 
 func (l *PlainLogger) Error(msg string, attrs ...any) {
 	formatted := formatAttrs(msg, attrs...)
-	l.write("%s[ERROR] %s\n", l.indent(), formatted)
+	l.write("%s[ERROR] %s\n", indentTask, formatted)
 }
 
 // Helper functions
