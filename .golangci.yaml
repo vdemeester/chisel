@@ -14,7 +14,6 @@ linters:
     - unused
     - gosimple
     - ineffassign
-    - typecheck
 
 linters-settings:
   gofmt:
