@@ -15,14 +15,13 @@ linters:
     - gosimple
     - ineffassign
 
-linters-settings:
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/vdemeester/chisel
-
-issues:
-  exclude-dirs:
-    - vendor
-  max-issues-per-linter: 0
-  max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/vdemeester/chisel
