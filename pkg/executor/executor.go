@@ -162,11 +162,11 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 		// Detect shebang or default to sh
 		shell := []string{"sh", "-c"}
 		if strings.HasPrefix(script, "#!") {
-			// Extract shebang
+			// Extract shebang and append -c flag for inline script execution
 			lines := strings.SplitN(script, "\n", 2)
 			shebang := strings.TrimPrefix(lines[0], "#!")
 			shebang = strings.TrimSpace(shebang)
-			shell = strings.Fields(shebang)
+			shell = append(strings.Fields(shebang), "-c")
 			if len(lines) > 1 {
 				script = lines[1]
 			}
