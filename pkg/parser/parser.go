@@ -21,7 +21,7 @@ type Options struct {
 
 // Parser parses Tekton YAML files
 type Parser struct {
-	opts     Options
+	opts      Options
 	taskCache map[string]*TektonTask
 }
 
@@ -84,7 +84,7 @@ type TektonPipelineRun struct {
 			Name    string `yaml:"name"`
 			SubPath string `yaml:"subPath"`
 			// For local execution, we support local directory
-			EmptyDir *struct{} `yaml:"emptyDir"`
+			EmptyDir              *struct{} `yaml:"emptyDir"`
 			PersistentVolumeClaim *struct {
 				ClaimName string `yaml:"claimName"`
 			} `yaml:"persistentVolumeClaim"`
@@ -104,7 +104,7 @@ type TektonPipeline struct {
 
 // TektonPipelineSpec is the spec of a Pipeline
 type TektonPipelineSpec struct {
-	Params     []TektonParamSpec   `yaml:"params"`
+	Params     []TektonParamSpec    `yaml:"params"`
 	Tasks      []TektonPipelineTask `yaml:"tasks"`
 	Finally    []TektonPipelineTask `yaml:"finally"`
 	Workspaces []struct {
@@ -114,8 +114,8 @@ type TektonPipelineSpec struct {
 
 // TektonPipelineTask is a task reference within a Pipeline
 type TektonPipelineTask struct {
-	Name     string `yaml:"name"`
-	TaskRef  *struct {
+	Name    string `yaml:"name"`
+	TaskRef *struct {
 		Name string `yaml:"name"`
 	} `yaml:"taskRef"`
 	TaskSpec   *TektonTaskSpec `yaml:"taskSpec"`
@@ -151,13 +151,13 @@ type TektonTaskSpec struct {
 
 // TektonStep represents a step in a Task
 type TektonStep struct {
-	Name       string            `yaml:"name"`
-	Image      string            `yaml:"image"`
-	Command    []string          `yaml:"command"`
-	Args       []string          `yaml:"args"`
-	Script     string            `yaml:"script"`
-	Env        []TektonEnvVar    `yaml:"env"`
-	WorkingDir string            `yaml:"workingDir"`
+	Name       string         `yaml:"name"`
+	Image      string         `yaml:"image"`
+	Command    []string       `yaml:"command"`
+	Args       []string       `yaml:"args"`
+	Script     string         `yaml:"script"`
+	Env        []TektonEnvVar `yaml:"env"`
+	WorkingDir string         `yaml:"workingDir"`
 }
 
 // TektonSidecar represents a sidecar in a Task

@@ -98,10 +98,10 @@ type Sidecar struct {
 
 // ParamValue represents a parameter value (string, array, or object)
 type ParamValue struct {
-	Type        ParamType
-	StringVal   string
-	ArrayVal    []string
-	ObjectVal   map[string]string
+	Type      ParamType
+	StringVal string
+	ArrayVal  []string
+	ObjectVal map[string]string
 }
 
 // ParamType indicates the type of a parameter
@@ -146,7 +146,7 @@ type WorkspaceBinding struct {
 type WorkspaceType string
 
 const (
-	WorkspaceTypeEmptyDir  WorkspaceType = "emptyDir"
-	WorkspaceTypeLocal     WorkspaceType = "local"
-	WorkspaceTypePVC       WorkspaceType = "pvc"
+	WorkspaceTypeEmptyDir WorkspaceType = "emptyDir"
+	WorkspaceTypeLocal    WorkspaceType = "local"
+	WorkspaceTypePVC      WorkspaceType = "pvc"
 )
