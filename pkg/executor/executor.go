@@ -214,7 +214,19 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 		return err
 	}
 
-	// TODO: Capture results from /tekton/results/ directory
+	// Capture results from /tekton/results/ directory
+	if len(task.Results) > 0 {
+		resultFiles := make(map[string]string)
+		for _, spec := range task.Results {
+			// Try to read each result file from the container
+			resultPath := fmt.Sprintf("/tekton/results/%s", spec.Name)
+			content, readErr := container.File(resultPath).Contents(ctx)
+			if readErr == nil {
+				resultFiles[spec.Name] = content
+			}
+		}
+		captureResults(task.Results, resultFiles, e.results[task.Name])
+	}
 
 	return nil
 }

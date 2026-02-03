@@ -1,0 +1,48 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: results-demo
+spec:
+  pipelineSpec:
+    tasks:
+      - name: generate
+        taskSpec:
+          results:
+            - name: commit-sha
+              description: The generated commit SHA
+            - name: build-time
+              description: When the build started
+          steps:
+            - name: produce-results
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Generating results..."
+                mkdir -p /tekton/results
+                echo "abc123def456" > /tekton/results/commit-sha
+                date -Iseconds > /tekton/results/build-time
+                echo "Results written to /tekton/results/"
+                cat /tekton/results/commit-sha
+                cat /tekton/results/build-time
+      - name: consume
+        runAfter:
+          - generate
+        taskSpec:
+          params:
+            - name: sha
+              type: string
+            - name: time
+              type: string
+          steps:
+            - name: use-results
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Consuming results from previous task..."
+                echo "Commit SHA: $(params.sha)"
+                echo "Build Time: $(params.time)"
+        params:
+          - name: sha
+            value: "$(tasks.generate.results.commit-sha)"
+          - name: time
+            value: "$(tasks.generate.results.build-time)"
