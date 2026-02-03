@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+
 	"github.com/vdemeester/chisel/pkg/executor"
 	"github.com/vdemeester/chisel/pkg/parser"
 )
