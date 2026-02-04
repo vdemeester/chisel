@@ -1,0 +1,59 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: matrix-example
+spec:
+  pipelineSpec:
+    params:
+      - name: greeting
+        default: "Hello"
+    tasks:
+      # Single matrix parameter - runs 3 times
+      - name: greet-languages
+        matrix:
+          params:
+            - name: language
+              value:
+                - "English"
+                - "French"
+                - "Spanish"
+        taskSpec:
+          params:
+            - name: language
+          steps:
+            - name: greet
+              image: alpine:latest
+              script: |
+                echo "Greeting in $(params.language):"
+                case "$(params.language)" in
+                  English) echo "Hello, World!" ;;
+                  French)  echo "Bonjour, le monde!" ;;
+                  Spanish) echo "Hola, Mundo!" ;;
+                esac
+
+      # Multiple matrix parameters - runs 4 times (2x2)
+      - name: build-variants
+        runAfter:
+          - greet-languages
+        matrix:
+          params:
+            - name: compiler
+              value:
+                - "gcc"
+                - "clang"
+            - name: optimization
+              value:
+                - "O0"
+                - "O2"
+        taskSpec:
+          params:
+            - name: compiler
+            - name: optimization
+          steps:
+            - name: show-build
+              image: alpine:latest
+              script: |
+                echo "Build configuration:"
+                echo "  Compiler: $(params.compiler)"
+                echo "  Optimization: -$(params.optimization)"
+                echo "  Command: $(params.compiler) -$(params.optimization) main.c -o main"
