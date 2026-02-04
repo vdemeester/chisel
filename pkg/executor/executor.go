@@ -148,6 +148,8 @@ func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr
 
 	// Execute each step sequentially
 	for _, step := range task.Steps {
+		// Apply stepTemplate defaults
+		step = applyStepTemplate(step, task.StepTemplate)
 		stepCopy := step // avoid closure capture issue
 		err := executeWithRetry(step.Retries, func() error {
 			return e.executeStep(ctx, &stepCopy, task, pr, sidecars)

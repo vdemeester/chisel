@@ -55,6 +55,9 @@ type ResolvedTask struct {
 
 	// When contains expressions that must evaluate to true for the task to run
 	When []WhenExpression
+
+	// StepTemplate defines default values for all steps
+	StepTemplate *StepTemplate
 }
 
 // WhenExpression defines a condition for task execution.
@@ -247,4 +250,23 @@ type VolumeMount struct {
 
 	// ReadOnly defaults to false
 	ReadOnly bool
+}
+
+// StepTemplate defines default values applied to all steps in a task.
+// Step values override template values where both are specified.
+type StepTemplate struct {
+	// Image is the default container image for steps
+	Image string
+
+	// Command is the default entrypoint
+	Command []string
+
+	// Env are default environment variables (merged with step env)
+	Env map[string]string
+
+	// WorkingDir is the default working directory
+	WorkingDir string
+
+	// VolumeMounts are default volume mounts (prepended to step mounts)
+	VolumeMounts []VolumeMount
 }
