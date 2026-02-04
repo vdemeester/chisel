@@ -78,8 +78,11 @@ func (e *Executor) Execute(ctx context.Context, pr *types.ResolvedPipelineRun) e
 
 	var pipelineErr error
 
+	// Expand matrix tasks before building DAG
+	tasks := expandAllMatrixTasks(pr.Tasks)
+
 	// Build DAG and execute tasks in parallel where possible
-	dag := BuildDAG(pr.Tasks)
+	dag := BuildDAG(tasks)
 	pipelineErr = dag.ExecuteParallel(func(task *types.ResolvedTask) error {
 		return e.executeTask(ctx, task, pr)
 	})

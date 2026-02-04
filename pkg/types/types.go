@@ -58,6 +58,9 @@ type ResolvedTask struct {
 
 	// StepTemplate defines default values for all steps
 	StepTemplate *StepTemplate
+
+	// Matrix defines parameter combinations to expand this task
+	Matrix *Matrix
 }
 
 // WhenExpression defines a condition for task execution.
@@ -269,4 +272,20 @@ type StepTemplate struct {
 
 	// VolumeMounts are default volume mounts (prepended to step mounts)
 	VolumeMounts []VolumeMount
+}
+
+// Matrix defines parameter combinations for task expansion.
+// Each combination of parameter values creates a separate task instance.
+type Matrix struct {
+	// Params are the parameters to combine
+	Params []MatrixParam
+}
+
+// MatrixParam defines a parameter with multiple values for matrix expansion.
+type MatrixParam struct {
+	// Name is the parameter name
+	Name string
+
+	// Values are the possible values for this parameter
+	Values []string
 }

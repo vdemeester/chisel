@@ -123,10 +123,22 @@ type TektonPipelineTask struct {
 	Params     []TektonParam          `yaml:"params"`
 	RunAfter   []string               `yaml:"runAfter"`
 	When       []TektonWhenExpression `yaml:"when"`
+	Matrix     *TektonMatrix          `yaml:"matrix"`
 	Workspaces []struct {
 		Name      string `yaml:"name"`
 		Workspace string `yaml:"workspace"`
 	} `yaml:"workspaces"`
+}
+
+// TektonMatrix defines matrix parameters for task expansion
+type TektonMatrix struct {
+	Params []TektonMatrixParam `yaml:"params"`
+}
+
+// TektonMatrixParam defines a parameter with multiple values
+type TektonMatrixParam struct {
+	Name   string   `yaml:"name"`
+	Values []string `yaml:"value"`
 }
 
 // TektonWhenExpression represents a when expression for conditional task execution
@@ -562,6 +574,9 @@ func (p *Parser) resolveTask(pt TektonPipelineTask, baseDir string, pipelinePara
 	// Convert stepTemplate
 	resolved.StepTemplate = convertStepTemplate(taskSpec.StepTemplate)
 
+	// Convert matrix
+	resolved.Matrix = convertMatrix(pt.Matrix)
+
 	return resolved, nil
 }
 
@@ -655,6 +670,24 @@ func convertStepTemplate(template *TektonStepTemplate) *types.StepTemplate {
 		Env:          env,
 		WorkingDir:   template.WorkingDir,
 		VolumeMounts: volumeMounts,
+	}
+}
+
+func convertMatrix(matrix *TektonMatrix) *types.Matrix {
+	if matrix == nil {
+		return nil
+	}
+
+	params := make([]types.MatrixParam, len(matrix.Params))
+	for i, p := range matrix.Params {
+		params[i] = types.MatrixParam{
+			Name:   p.Name,
+			Values: p.Values,
+		}
+	}
+
+	return &types.Matrix{
+		Params: params,
 	}
 }
 
