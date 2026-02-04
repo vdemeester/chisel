@@ -1,0 +1,47 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: steptemplate-example
+spec:
+  pipelineSpec:
+    tasks:
+      - name: golang-task
+        taskSpec:
+          # stepTemplate provides defaults for all steps
+          stepTemplate:
+            image: golang:1.21
+            workingDir: /workspace
+            env:
+              - name: GOPROXY
+                value: https://proxy.golang.org
+              - name: GOFLAGS
+                value: -mod=readonly
+          steps:
+            # This step uses the template image (golang:1.21) and env vars
+            - name: show-version
+              script: |
+                echo "Go version:"
+                go version
+                echo "GOPROXY: $GOPROXY"
+                echo "GOFLAGS: $GOFLAGS"
+            # This step overrides the template image
+            - name: show-alpine
+              image: alpine:latest
+              script: |
+                echo "This step uses alpine instead of golang"
+                echo "GOPROXY is still set: $GOPROXY"
+            # This step adds to the template env
+            - name: custom-env
+              env:
+                - name: CUSTOM_VAR
+                  value: custom_value
+                # Override a template env var
+                - name: GOFLAGS
+                  value: -mod=vendor
+              script: |
+                echo "Template vars:"
+                echo "  GOPROXY: $GOPROXY"
+                echo "Step override:"
+                echo "  GOFLAGS: $GOFLAGS"
+                echo "Step addition:"
+                echo "  CUSTOM_VAR: $CUSTOM_VAR"

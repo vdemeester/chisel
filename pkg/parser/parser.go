@@ -148,12 +148,13 @@ type TektonTask struct {
 
 // TektonTaskSpec is the spec of a Task
 type TektonTaskSpec struct {
-	Params     []TektonParamSpec `yaml:"params"`
-	Steps      []TektonStep      `yaml:"steps"`
-	Sidecars   []TektonSidecar   `yaml:"sidecars"`
-	Results    []TektonResult    `yaml:"results"`
-	Volumes    []TektonVolume    `yaml:"volumes"`
-	Workspaces []struct {
+	Params       []TektonParamSpec   `yaml:"params"`
+	Steps        []TektonStep        `yaml:"steps"`
+	Sidecars     []TektonSidecar     `yaml:"sidecars"`
+	Results      []TektonResult      `yaml:"results"`
+	Volumes      []TektonVolume      `yaml:"volumes"`
+	StepTemplate *TektonStepTemplate `yaml:"stepTemplate"`
+	Workspaces   []struct {
 		Name      string `yaml:"name"`
 		MountPath string `yaml:"mountPath"`
 	} `yaml:"workspaces"`
@@ -171,6 +172,15 @@ type TektonStep struct {
 	VolumeMounts []TektonVolumeMount `yaml:"volumeMounts"`
 	Timeout      string              `yaml:"timeout"`
 	Retries      int                 `yaml:"retries"`
+}
+
+// TektonStepTemplate defines default values for steps
+type TektonStepTemplate struct {
+	Image        string              `yaml:"image"`
+	Command      []string            `yaml:"command"`
+	Env          []TektonEnvVar      `yaml:"env"`
+	WorkingDir   string              `yaml:"workingDir"`
+	VolumeMounts []TektonVolumeMount `yaml:"volumeMounts"`
 }
 
 // TektonVolume represents a volume in a Task
@@ -416,6 +426,9 @@ func (p *Parser) parseTaskAsPipelineRun(data []byte, baseDir string) (*types.Res
 		})
 	}
 
+	// Convert stepTemplate
+	resolvedTask.StepTemplate = convertStepTemplate(task.Spec.StepTemplate)
+
 	resolved.Tasks = append(resolved.Tasks, resolvedTask)
 	return resolved, nil
 }
@@ -546,6 +559,9 @@ func (p *Parser) resolveTask(pt TektonPipelineTask, baseDir string, pipelinePara
 		resolved.Volumes = append(resolved.Volumes, convertVolume(vol))
 	}
 
+	// Convert stepTemplate
+	resolved.StepTemplate = convertStepTemplate(taskSpec.StepTemplate)
+
 	return resolved, nil
 }
 
@@ -611,6 +627,35 @@ func convertWhenExpressions(exprs []TektonWhenExpression) []types.WhenExpression
 		}
 	}
 	return result
+}
+
+func convertStepTemplate(template *TektonStepTemplate) *types.StepTemplate {
+	if template == nil {
+		return nil
+	}
+
+	env := make(map[string]string)
+	for _, e := range template.Env {
+		env[e.Name] = e.Value
+	}
+
+	var volumeMounts []types.VolumeMount
+	for _, vm := range template.VolumeMounts {
+		volumeMounts = append(volumeMounts, types.VolumeMount{
+			Name:      vm.Name,
+			MountPath: vm.MountPath,
+			SubPath:   vm.SubPath,
+			ReadOnly:  vm.ReadOnly,
+		})
+	}
+
+	return &types.StepTemplate{
+		Image:        template.Image,
+		Command:      template.Command,
+		Env:          env,
+		WorkingDir:   template.WorkingDir,
+		VolumeMounts: volumeMounts,
+	}
 }
 
 func convertVolume(vol TektonVolume) types.Volume {
