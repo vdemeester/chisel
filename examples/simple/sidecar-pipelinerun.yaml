@@ -1,0 +1,35 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: sidecar-example
+spec:
+  pipelineSpec:
+    tasks:
+      - name: test-with-redis
+        taskSpec:
+          sidecars:
+            - name: redis
+              image: redis:7-alpine
+              ports:
+                - containerPort: 6379
+          steps:
+            - name: wait-for-redis
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Waiting for Redis to be ready..."
+                # Give Redis a moment to start
+                sleep 2
+                echo "Redis sidecar should be available at redis:6379"
+            - name: test-redis
+              image: redis:7-alpine
+              script: |
+                #!/bin/sh
+                echo "Testing Redis connection..."
+                # Connect to the sidecar by its name
+                redis-cli -h redis ping
+                echo "Setting a key..."
+                redis-cli -h redis set test-key "Hello from Chisel!"
+                echo "Getting the key..."
+                redis-cli -h redis get test-key
+                echo "Redis test complete!"
