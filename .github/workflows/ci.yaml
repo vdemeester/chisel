@@ -82,6 +82,7 @@ jobs:
           ./chisel run examples/simple/timeout-pipelinerun.yaml --dry-run --debug
           ./chisel run examples/simple/retry-pipelinerun.yaml --dry-run --debug
           ./chisel run examples/simple/sidecar-pipelinerun.yaml --dry-run --debug
+          ./chisel run examples/simple/when-pipelinerun.yaml --dry-run --debug
 
           # Test actual execution
           ./chisel run examples/simple/hello-task.yaml --debug
@@ -89,3 +90,4 @@ jobs:
           ./chisel run examples/simple/timeout-pipelinerun.yaml --debug
           ./chisel run examples/simple/retry-pipelinerun.yaml --debug
           ./chisel run examples/simple/sidecar-pipelinerun.yaml --debug
+          ./chisel run examples/simple/when-pipelinerun.yaml --debug
