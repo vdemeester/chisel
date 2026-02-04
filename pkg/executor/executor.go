@@ -154,6 +154,19 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 	stepStart := time.Now()
 	e.log.StepStart(step.Name, step.Image)
 
+	// Apply timeout if specified
+	if step.Timeout != "" {
+		timeout, err := parseTimeout(step.Timeout)
+		if err != nil {
+			return fmt.Errorf("invalid timeout: %w", err)
+		}
+		if timeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, timeout)
+			defer cancel()
+		}
+	}
+
 	// Create container from image
 	container := e.client.Container().From(step.Image)
 

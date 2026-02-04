@@ -79,6 +79,9 @@ type Step struct {
 
 	// VolumeMounts are volumes to mount into the container
 	VolumeMounts []VolumeMount
+
+	// Timeout is the maximum duration for the step (e.g., "10s", "5m")
+	Timeout string
 }
 
 // Sidecar represents a sidecar container
