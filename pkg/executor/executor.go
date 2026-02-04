@@ -140,7 +140,14 @@ func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr
 
 	// Execute each step sequentially
 	for _, step := range task.Steps {
-		if err := e.executeStep(ctx, &step, task, pr, sidecars); err != nil {
+		stepCopy := step // avoid closure capture issue
+		err := executeWithRetry(step.Retries, func() error {
+			return e.executeStep(ctx, &stepCopy, task, pr, sidecars)
+		})
+		if err != nil {
+			if step.Retries > 0 {
+				e.log.Warn("step failed after retries", "step", step.Name, "retries", step.Retries)
+			}
 			taskErr = fmt.Errorf("step %s failed: %w", step.Name, err)
 			break
 		}

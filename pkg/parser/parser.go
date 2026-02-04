@@ -162,6 +162,7 @@ type TektonStep struct {
 	WorkingDir   string              `yaml:"workingDir"`
 	VolumeMounts []TektonVolumeMount `yaml:"volumeMounts"`
 	Timeout      string              `yaml:"timeout"`
+	Retries      int                 `yaml:"retries"`
 }
 
 // TektonVolume represents a volume in a Task
@@ -565,6 +566,7 @@ func convertStep(step TektonStep) types.Step {
 		WorkingDir:   step.WorkingDir,
 		VolumeMounts: volumeMounts,
 		Timeout:      step.Timeout,
+		Retries:      step.Retries,
 	}
 }
 

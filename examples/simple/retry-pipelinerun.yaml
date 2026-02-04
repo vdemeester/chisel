@@ -1,0 +1,25 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: retry-example
+spec:
+  pipelineSpec:
+    tasks:
+      - name: test-retry
+        taskSpec:
+          steps:
+            - name: flaky-step
+              image: alpine:latest
+              retries: 2
+              script: |
+                #!/bin/sh
+                echo "Attempting step execution..."
+                # This step has 2 retries (3 total attempts)
+                # In a real scenario, this might be a flaky network call
+                echo "Step succeeded!"
+            - name: no-retry-step
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "This step has no retries configured"
+                echo "It will fail immediately on error"

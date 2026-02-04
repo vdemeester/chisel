@@ -82,6 +82,9 @@ type Step struct {
 
 	// Timeout is the maximum duration for the step (e.g., "10s", "5m")
 	Timeout string
+
+	// Retries is the number of times to retry the step on failure
+	Retries int
 }
 
 // Sidecar represents a sidecar container
