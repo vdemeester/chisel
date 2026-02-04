@@ -3,6 +3,7 @@ package ui
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -155,5 +156,58 @@ func TestOutputModeString(t *testing.T) {
 		if result != tt.expected {
 			t.Errorf("OutputMode(%v).String() = %s, expected %s", tt.mode, result, tt.expected)
 		}
+	}
+}
+
+func TestPrettyLogger_StepEndWithError(t *testing.T) {
+	var buf bytes.Buffer
+	log := NewLogger(OutputPretty, &buf)
+
+	testErr := errors.New("connection refused")
+	log.StepEnd("test-step", 100*time.Millisecond, testErr)
+
+	output := buf.String()
+
+	// Should show ERROR marker
+	if !strings.Contains(output, "ERROR") {
+		t.Error("Expected 'ERROR' in output")
+	}
+	// Should show the error message
+	if !strings.Contains(output, "connection refused") {
+		t.Errorf("Expected error message in output, got: %s", output)
+	}
+}
+
+func TestPrettyLogger_TaskEndWithError(t *testing.T) {
+	var buf bytes.Buffer
+	log := NewLogger(OutputPretty, &buf)
+
+	testErr := errors.New("step failed")
+	log.TaskEnd("test-task", 200*time.Millisecond, testErr)
+
+	output := buf.String()
+
+	// Should show ERROR marker
+	if !strings.Contains(output, "ERROR") {
+		t.Error("Expected 'ERROR' in output")
+	}
+	// Should show the error message
+	if !strings.Contains(output, "step failed") {
+		t.Errorf("Expected error message in output, got: %s", output)
+	}
+}
+
+func TestPlainLogger_StepEndWithError(t *testing.T) {
+	var buf bytes.Buffer
+	log := NewLogger(OutputPlain, &buf)
+
+	testErr := errors.New("timeout exceeded")
+	log.StepEnd("test-step", 100*time.Millisecond, testErr)
+
+	output := buf.String()
+
+	// Should show error message
+	if !strings.Contains(output, "timeout exceeded") {
+		t.Errorf("Expected error message in output, got: %s", output)
 	}
 }

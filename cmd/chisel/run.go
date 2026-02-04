@@ -31,9 +31,10 @@ Examples:
 
   # Run with debug output
   chisel run pipelinerun.yaml --debug`,
-	Args:         cobra.ExactArgs(1),
-	SilenceUsage: true,
-	RunE:         runPipeline,
+	Args:          cobra.ExactArgs(1),
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE:          runPipeline,
 }
 
 var (
@@ -56,6 +57,22 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Determine output mode early so we can use styled errors
+	var mode ui.OutputMode
+	if outputMode != "" {
+		mode = ui.ParseOutputMode(outputMode)
+	} else {
+		mode = ui.DetectOutputMode()
+	}
+	log := ui.NewLogger(mode, os.Stdout)
+
+	// Helper to print styled error and return it
+	fail := func(err error) error {
+		cleaned := ui.CleanError(err)
+		log.Error(cleaned.Error())
+		return cleaned
+	}
+
 	// Handle interrupt signals
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -64,15 +81,6 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		fmt.Println("\nInterrupted, cleaning up...")
 		cancel()
 	}()
-
-	// Determine output mode
-	var mode ui.OutputMode
-	if outputMode != "" {
-		mode = ui.ParseOutputMode(outputMode)
-	} else {
-		mode = ui.DetectOutputMode()
-	}
-	log := ui.NewLogger(mode, os.Stdout)
 
 	pipelineRunPath := args[0]
 
@@ -84,17 +92,17 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 
 	resolved, err := p.ParsePipelineRun(pipelineRunPath)
 	if err != nil {
-		return fmt.Errorf("failed to parse PipelineRun: %w", err)
+		return fail(fmt.Errorf("failed to parse PipelineRun: %w", err))
 	}
 
 	// Apply workspace overrides from CLI flags
 	if len(workspaces) > 0 {
 		wsOverrides, err := parseWorkspaceBindings(workspaces)
 		if err != nil {
-			return fmt.Errorf("invalid workspace binding: %w", err)
+			return fail(fmt.Errorf("invalid workspace binding: %w", err))
 		}
 		if err := applyWorkspaceOverrides(resolved, wsOverrides); err != nil {
-			return fmt.Errorf("failed to apply workspace overrides: %w", err)
+			return fail(fmt.Errorf("failed to apply workspace overrides: %w", err))
 		}
 		if debug {
 			for name, path := range wsOverrides {
@@ -123,12 +131,12 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		Logger: log,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create executor: %w", err)
+		return fail(fmt.Errorf("failed to create executor: %w", err))
 	}
 	defer exec.Close()
 
 	if err := exec.Execute(ctx, resolved); err != nil {
-		return fmt.Errorf("execution failed: %w", err)
+		return fail(fmt.Errorf("execution failed: %w", err))
 	}
 
 	return nil
