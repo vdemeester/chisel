@@ -119,13 +119,21 @@ type TektonPipelineTask struct {
 	TaskRef *struct {
 		Name string `yaml:"name"`
 	} `yaml:"taskRef"`
-	TaskSpec   *TektonTaskSpec `yaml:"taskSpec"`
-	Params     []TektonParam   `yaml:"params"`
-	RunAfter   []string        `yaml:"runAfter"`
+	TaskSpec   *TektonTaskSpec        `yaml:"taskSpec"`
+	Params     []TektonParam          `yaml:"params"`
+	RunAfter   []string               `yaml:"runAfter"`
+	When       []TektonWhenExpression `yaml:"when"`
 	Workspaces []struct {
 		Name      string `yaml:"name"`
 		Workspace string `yaml:"workspace"`
 	} `yaml:"workspaces"`
+}
+
+// TektonWhenExpression represents a when expression for conditional task execution
+type TektonWhenExpression struct {
+	Input    string   `yaml:"input"`
+	Operator string   `yaml:"operator"`
+	Values   []string `yaml:"values"`
 }
 
 // TektonTask represents a Tekton Task
@@ -466,6 +474,7 @@ func (p *Parser) resolveTask(pt TektonPipelineTask, baseDir string, pipelinePara
 	resolved := &types.ResolvedTask{
 		Name:       pt.Name,
 		RunAfter:   pt.RunAfter,
+		When:       convertWhenExpressions(pt.When),
 		Params:     make(map[string]types.ParamValue),
 		Workspaces: make(map[string]string),
 	}
@@ -587,6 +596,21 @@ func convertSidecar(sidecar TektonSidecar) types.Sidecar {
 		Env:     env,
 		Ports:   ports,
 	}
+}
+
+func convertWhenExpressions(exprs []TektonWhenExpression) []types.WhenExpression {
+	if len(exprs) == 0 {
+		return nil
+	}
+	result := make([]types.WhenExpression, len(exprs))
+	for i, expr := range exprs {
+		result[i] = types.WhenExpression{
+			Input:    expr.Input,
+			Operator: expr.Operator,
+			Values:   expr.Values,
+		}
+	}
+	return result
 }
 
 func convertVolume(vol TektonVolume) types.Volume {

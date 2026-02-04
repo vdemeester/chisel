@@ -116,6 +116,14 @@ func (e *Executor) createWorkspace(ctx context.Context, binding types.WorkspaceB
 }
 
 func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) error {
+	// Evaluate when conditions before executing
+	if !evaluateWhen(task, task.Params, e.results) {
+		e.log.Info("task skipped (when conditions not met)", "task", task.Name)
+		// Initialize empty results for skipped task so dependent tasks can reference them
+		e.results[task.Name] = make(map[string]string)
+		return nil
+	}
+
 	taskStart := time.Now()
 	e.log.TaskStart(task.Name)
 

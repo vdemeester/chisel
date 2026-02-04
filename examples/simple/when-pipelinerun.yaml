@@ -1,0 +1,93 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: when-example
+spec:
+  params:
+    - name: environment
+      value: "production"
+    - name: run-tests
+      value: "true"
+  pipelineSpec:
+    params:
+      - name: environment
+        type: string
+      - name: run-tests
+        type: string
+    tasks:
+      - name: build
+        taskSpec:
+          steps:
+            - name: compile
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Building application..."
+                echo "Build complete"
+          results:
+            - name: status
+              description: Build status
+        # Build always runs
+
+      - name: test
+        runAfter:
+          - build
+        when:
+          - input: "$(params.run-tests)"
+            operator: in
+            values: ["true", "yes", "1"]
+        taskSpec:
+          steps:
+            - name: run-tests
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Running tests..."
+                echo "All tests passed!"
+
+      - name: deploy-staging
+        runAfter:
+          - build
+        when:
+          - input: "$(params.environment)"
+            operator: in
+            values: ["staging", "development"]
+        taskSpec:
+          steps:
+            - name: deploy
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Deploying to staging..."
+                echo "Staging deployment complete"
+
+      - name: deploy-production
+        runAfter:
+          - build
+        when:
+          - input: "$(params.environment)"
+            operator: in
+            values: ["production"]
+        taskSpec:
+          steps:
+            - name: deploy
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "Deploying to production..."
+                echo "Production deployment complete"
+
+      - name: skip-example
+        runAfter:
+          - build
+        when:
+          - input: "$(params.environment)"
+            operator: notin
+            values: ["production", "staging", "development"]
+        taskSpec:
+          steps:
+            - name: never-runs
+              image: alpine:latest
+              script: |
+                #!/bin/sh
+                echo "This should never run with standard environments"

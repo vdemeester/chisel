@@ -52,6 +52,22 @@ type ResolvedTask struct {
 
 	// Volumes are volumes that can be mounted by steps
 	Volumes []Volume
+
+	// When contains expressions that must evaluate to true for the task to run
+	When []WhenExpression
+}
+
+// WhenExpression defines a condition for task execution.
+// All expressions must evaluate to true for the task to run.
+type WhenExpression struct {
+	// Input is the value to evaluate (supports variable substitution)
+	Input string
+
+	// Operator is the comparison operator: "in" or "notin"
+	Operator string
+
+	// Values is the list of values to compare against
+	Values []string
 }
 
 // Step represents a single step within a task
