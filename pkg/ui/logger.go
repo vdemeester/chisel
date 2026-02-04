@@ -102,6 +102,9 @@ func (l *PrettyLogger) TaskEnd(name string, duration time.Duration, err error) {
 	if err != nil {
 		errMsg := StyleError.Render("ERROR")
 		l.write("%s%s %s %s %s %s\n", indentTask, symbol, label, name, dur, errMsg)
+		// Show error details on next line
+		errDetail := StyleError.Render(CleanErrorMessage(err.Error()))
+		l.write("%s  %s %s\n", indentTask, StyleDim.Render(SymbolArrow), errDetail)
 	} else {
 		l.write("%s%s %s %s %s\n", indentTask, symbol, label, name, dur)
 	}
@@ -126,6 +129,9 @@ func (l *PrettyLogger) StepEnd(name string, duration time.Duration, err error) {
 	if err != nil {
 		errMsg := StyleError.Render("ERROR")
 		l.write("%s%s %s %s %s %s\n", indentStep, symbol, label, name, dur, errMsg)
+		// Show error details on next line
+		errDetail := StyleError.Render(CleanErrorMessage(err.Error()))
+		l.write("%s  %s %s\n", indentStep, StyleDim.Render(SymbolArrow), errDetail)
 	} else {
 		l.write("%s%s %s %s %s\n", indentStep, symbol, label, name, dur)
 	}
@@ -194,6 +200,7 @@ func (l *PlainLogger) TaskStart(name string) {
 func (l *PlainLogger) TaskEnd(name string, duration time.Duration, err error) {
 	if err != nil {
 		l.write("%sX Task: %s [%s] ERROR\n", indentTask, name, formatDuration(duration))
+		l.write("%s  -> %s\n", indentTask, CleanErrorMessage(err.Error()))
 	} else {
 		l.write("%s+ Task: %s [%s]\n", indentTask, name, formatDuration(duration))
 	}
@@ -206,6 +213,7 @@ func (l *PlainLogger) StepStart(name string, image string) {
 func (l *PlainLogger) StepEnd(name string, duration time.Duration, err error) {
 	if err != nil {
 		l.write("%sX Step: %s [%s] ERROR\n", indentStep, name, formatDuration(duration))
+		l.write("%s  -> %s\n", indentStep, CleanErrorMessage(err.Error()))
 	} else {
 		l.write("%s+ Step: %s [%s]\n", indentStep, name, formatDuration(duration))
 	}
