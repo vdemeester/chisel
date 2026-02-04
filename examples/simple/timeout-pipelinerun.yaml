@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: timeout-example
+spec:
+  pipelineSpec:
+    tasks:
+      - name: test-timeout
+        taskSpec:
+          steps:
+            - name: quick-step
+              image: alpine:latest
+              timeout: "5s"
+              script: |
+                #!/bin/sh
+                echo "This step has a 5 second timeout"
+                echo "Completing quickly..."
+                echo "Done!"
+            - name: slow-step-with-timeout
+              image: alpine:latest
+              timeout: "10s"
+              script: |
+                #!/bin/sh
+                echo "This step has a 10 second timeout"
+                echo "Sleeping for 3 seconds..."
+                sleep 3
+                echo "Completed within timeout!"
