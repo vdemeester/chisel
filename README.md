@@ -92,6 +92,18 @@ chisel run examples/simple/workspace-override-pipelinerun.yaml --workspace=sourc
 
 # Pipeline that demonstrates failure handling
 chisel run examples/simple/failing-pipelinerun.yaml
+
+# Step timeout (steps with time limits)
+chisel run examples/simple/timeout-pipelinerun.yaml
+
+# Step retry (automatic retry on failure)
+chisel run examples/simple/retry-pipelinerun.yaml
+
+# Sidecar containers (e.g., Redis alongside steps)
+chisel run examples/simple/sidecar-pipelinerun.yaml
+
+# Conditional execution (when clauses)
+chisel run examples/simple/when-pipelinerun.yaml
 ```
 
 ## Supported Features
@@ -111,11 +123,12 @@ chisel run examples/simple/failing-pipelinerun.yaml
 - [x] Step stdout/stderr capture and display
 - [x] Variable substitution: `$(params.*)`, `$(params.array[*])`, `$(params.array[N])`, `$(params.object.field)`, `$(workspaces.*.path)`, `$(tasks.*.results.*)`, `$(context.*)`
 - [x] CLI workspace override (`--workspace/-w` flag for local development)
+- [x] Sidecar execution (run auxiliary containers alongside steps)
+- [x] Step timeout (time limits with Go duration format)
+- [x] Step retry (automatic retry on failure)
+- [x] Conditional execution (`when` clauses with `in`/`notin` operators)
 
 ### Planned
-- [ ] Sidecar execution
-- [ ] Conditional execution (when)
-- [ ] Step timeout and retry
 - [ ] Matrix builds
 - [ ] stepTemplate defaults
 
