@@ -122,11 +122,25 @@ func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr
 	// Initialize results storage for this task
 	e.results[task.Name] = make(map[string]string)
 
+	// Start sidecars if any
+	var sidecars []SidecarService
+	if len(task.Sidecars) > 0 {
+		var err error
+		sidecars, err = startSidecars(e.client, task)
+		if err != nil {
+			e.log.TaskEnd(task.Name, time.Since(taskStart), err)
+			return fmt.Errorf("failed to start sidecars: %w", err)
+		}
+		for _, svc := range sidecars {
+			e.log.Info("sidecar started", "name", svc.Name, "ports", svc.Ports)
+		}
+	}
+
 	var taskErr error
 
 	// Execute each step sequentially
 	for _, step := range task.Steps {
-		if err := e.executeStep(ctx, &step, task, pr); err != nil {
+		if err := e.executeStep(ctx, &step, task, pr, sidecars); err != nil {
 			taskErr = fmt.Errorf("step %s failed: %w", step.Name, err)
 			break
 		}
@@ -136,12 +150,17 @@ func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr
 	return taskErr
 }
 
-func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) error {
+func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *types.ResolvedTask, pr *types.ResolvedPipelineRun, sidecars []SidecarService) error {
 	stepStart := time.Now()
 	e.log.StepStart(step.Name, step.Image)
 
 	// Create container from image
 	container := e.client.Container().From(step.Image)
+
+	// Bind sidecars to container (makes them accessible by name as hostname)
+	if len(sidecars) > 0 {
+		container = bindSidecarsToContainer(container, sidecars)
+	}
 
 	// Mount workspaces
 	for taskWsName, pipelineWsName := range task.Workspaces {
