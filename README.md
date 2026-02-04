@@ -107,6 +107,9 @@ chisel run examples/simple/when-pipelinerun.yaml
 
 # Step template defaults (shared image, env, workingDir)
 chisel run examples/simple/steptemplate-pipelinerun.yaml
+
+# Matrix builds (run task with multiple parameter combinations)
+chisel run examples/simple/matrix-pipelinerun.yaml
 ```
 
 ## Supported Features
@@ -131,9 +134,7 @@ chisel run examples/simple/steptemplate-pipelinerun.yaml
 - [x] Step retry (automatic retry on failure)
 - [x] Conditional execution (`when` clauses with `in`/`notin` operators)
 - [x] stepTemplate defaults (image, env, workingDir, command, volumeMounts)
-
-### Planned
-- [ ] Matrix builds
+- [x] Matrix builds (run tasks with multiple parameter combinations)
 
 ## Architecture
 
