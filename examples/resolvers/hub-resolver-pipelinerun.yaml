@@ -1,0 +1,54 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: hub-resolver-demo
+spec:
+  pipelineSpec:
+    tasks:
+    - name: clone-from-hub
+      taskRef:
+        resolver: hub
+        params:
+        - name: name
+          value: git-clone
+        - name: version
+          value: "0.9"
+        - name: catalog
+          value: tekton-catalog-tasks
+        - name: type
+          value: artifact
+        - name: kind
+          value: task
+      params:
+      - name: url
+        value: https://github.com/tektoncd/pipeline
+      - name: revision
+        value: main
+      workspaces:
+      - name: output
+        workspace: source
+
+    - name: build-from-hub
+      taskRef:
+        resolver: hub
+        params:
+        - name: name
+          value: buildah
+        - name: version
+          value: "0.6"
+        - name: type
+          value: artifact
+      params:
+      - name: IMAGE
+        value: localhost/myimage:latest
+      - name: DOCKERFILE
+        value: ./Dockerfile
+      workspaces:
+      - name: source
+        workspace: source
+      runAfter:
+      - clone-from-hub
+
+  workspaces:
+  - name: source
+    emptyDir: {}
