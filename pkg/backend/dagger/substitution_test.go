@@ -1,4 +1,4 @@
-package executor
+package dagger
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestSubstituteVariables_StringParam(t *testing.T) {
-	e := &Executor{
+	e := &DaggerBackend{
 		results: make(map[string]map[string]string),
 	}
 	task := &types.ResolvedTask{
@@ -34,7 +34,7 @@ func TestSubstituteVariables_StringParam(t *testing.T) {
 
 func TestSubstituteVariables_ArrayParamStar(t *testing.T) {
 	// $(params.myarray[*]) should expand to space-separated values
-	e := &Executor{
+	e := &DaggerBackend{
 		results: make(map[string]map[string]string),
 	}
 	task := &types.ResolvedTask{
@@ -61,7 +61,7 @@ func TestSubstituteVariables_ArrayParamStar(t *testing.T) {
 
 func TestSubstituteVariables_ArrayParamIndex(t *testing.T) {
 	// $(params.myarray[0]) should expand to single indexed value
-	e := &Executor{
+	e := &DaggerBackend{
 		results: make(map[string]map[string]string),
 	}
 	task := &types.ResolvedTask{
@@ -96,7 +96,7 @@ func TestSubstituteVariables_ArrayParamIndex(t *testing.T) {
 
 func TestSubstituteVariables_ArrayParamIndexOutOfBounds(t *testing.T) {
 	// $(params.myarray[99]) with only 3 elements should leave placeholder or return empty
-	e := &Executor{
+	e := &DaggerBackend{
 		results: make(map[string]map[string]string),
 	}
 	task := &types.ResolvedTask{
@@ -124,7 +124,7 @@ func TestSubstituteVariables_ArrayParamIndexOutOfBounds(t *testing.T) {
 
 func TestSubstituteVariables_ObjectParamField(t *testing.T) {
 	// $(params.myobj.field) should expand to the field value
-	e := &Executor{
+	e := &DaggerBackend{
 		results: make(map[string]map[string]string),
 	}
 	task := &types.ResolvedTask{
@@ -162,7 +162,7 @@ func TestSubstituteVariables_ObjectParamField(t *testing.T) {
 
 func TestSubstituteVariables_ObjectParamMissingField(t *testing.T) {
 	// $(params.myobj.missing) should expand to empty string
-	e := &Executor{
+	e := &DaggerBackend{
 		results: make(map[string]map[string]string),
 	}
 	task := &types.ResolvedTask{
@@ -191,7 +191,7 @@ func TestSubstituteVariables_ObjectParamMissingField(t *testing.T) {
 
 func TestSubstituteVariables_MixedParams(t *testing.T) {
 	// Mix of string, array, and object params in one input
-	e := &Executor{
+	e := &DaggerBackend{
 		results: make(map[string]map[string]string),
 	}
 	task := &types.ResolvedTask{
