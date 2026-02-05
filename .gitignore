@@ -1,4 +1,5 @@
 # Binary (at root only)
+/.claude/settings.local.json
 /chisel
 
 # Go
