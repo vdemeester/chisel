@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"archive/tar"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -323,7 +324,7 @@ func (p *Parser) resolveBundles(ctx context.Context, params []TektonParam) (*Tek
 	}
 
 	// Search through layers for the task YAML
-	// Tekton bundles typically have the YAML in the first layer
+	// Tekton bundles store YAML files as tar archives in image layers
 	var taskYAML []byte
 	for _, layer := range layers {
 		rc, err := layer.Uncompressed()
@@ -332,20 +333,42 @@ func (p *Parser) resolveBundles(ctx context.Context, params []TektonParam) (*Tek
 		}
 		defer func() { _ = rc.Close() }()
 
-		data, err := io.ReadAll(rc)
-		if err != nil {
-			continue
-		}
-
-		// Try to parse as YAML to see if it's a Tekton resource
-		var task TektonTask
-		if err := yaml.Unmarshal(data, &task); err == nil {
-			// Check if this is the task we're looking for
-			// Use case-insensitive comparison for kind (Task vs task)
-			if task.Metadata.Name == taskName && strings.EqualFold(task.Kind, kind) {
-				taskYAML = data
+		// The layer is a tar archive - extract files from it
+		tr := tar.NewReader(rc)
+		for {
+			header, err := tr.Next()
+			if err == io.EOF {
 				break
 			}
+			if err != nil {
+				break
+			}
+
+			// Skip directories
+			if header.Typeflag == tar.TypeDir {
+				continue
+			}
+
+			// Read the file content
+			data, err := io.ReadAll(tr)
+			if err != nil {
+				continue
+			}
+
+			// Try to parse as YAML to see if it's a Tekton resource
+			var task TektonTask
+			if err := yaml.Unmarshal(data, &task); err == nil {
+				// Check if this is the task we're looking for
+				// Use case-insensitive comparison for kind (Task vs task)
+				if task.Metadata.Name == taskName && strings.EqualFold(task.Kind, kind) {
+					taskYAML = data
+					break
+				}
+			}
+		}
+
+		if len(taskYAML) > 0 {
+			break
 		}
 	}
 
