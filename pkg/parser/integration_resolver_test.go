@@ -31,7 +31,7 @@ spec:
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(taskYAML))
+		_, _ = w.Write([]byte(taskYAML))
 	}))
 	defer server.Close()
 
@@ -121,14 +121,14 @@ spec:
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(httpTaskYAML))
+		_, _ = w.Write([]byte(httpTaskYAML))
 	}))
 	defer server.Close()
 
 	// Create local task file
 	tmpDir := t.TempDir()
 	tasksDir := filepath.Join(tmpDir, "tasks")
-	os.MkdirAll(tasksDir, 0755)
+	_ = os.MkdirAll(tasksDir, 0755)
 
 	localTaskYAML := `apiVersion: tekton.dev/v1
 kind: Task
@@ -141,7 +141,7 @@ spec:
     script: echo "from local file"
 `
 	localTaskPath := filepath.Join(tasksDir, "local-task.yaml")
-	os.WriteFile(localTaskPath, []byte(localTaskYAML), 0644)
+	_ = os.WriteFile(localTaskPath, []byte(localTaskYAML), 0644)
 
 	// Create pipeline using both resolvers
 	pipelineYAML := `apiVersion: tekton.dev/v1
@@ -164,7 +164,7 @@ spec:
 `
 
 	pipelinePath := filepath.Join(tmpDir, "pipeline.yaml")
-	os.WriteFile(pipelinePath, []byte(pipelineYAML), 0644)
+	_ = os.WriteFile(pipelinePath, []byte(pipelineYAML), 0644)
 
 	// Parse the pipeline
 	parser := New(Options{TasksDir: tasksDir})

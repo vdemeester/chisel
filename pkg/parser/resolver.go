@@ -45,7 +45,7 @@ func (p *Parser) resolveHTTP(ctx context.Context, params []TektonParam) (*Tekton
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch task from %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
@@ -101,15 +101,15 @@ func (p *Parser) resolveGit(ctx context.Context, params []TektonParam) (*TektonT
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Clone options with shallow clone for efficiency
 	cloneOpts := &git.CloneOptions{
-		URL:           url,
-		Depth:         1,
-		SingleBranch:  true,
-		Tags:          git.NoTags,
-		Progress:      nil, // Suppress clone progress
+		URL:          url,
+		Depth:        1,
+		SingleBranch: true,
+		Tags:         git.NoTags,
+		Progress:     nil, // Suppress clone progress
 	}
 
 	// Try to parse revision as a branch/tag reference first
@@ -191,18 +191,9 @@ func (p *Parser) resolveHubWithBaseURL(ctx context.Context, params []TektonParam
 		catalog = "tekton-catalog-tasks" // Default catalog
 	}
 
-	// type parameter is optional (artifact vs tekton)
-	// We'll use artifact type by default as it's the recommended approach
-	hubType := getParamValue(params, "type")
-	if hubType == "" {
-		hubType = "artifact"
-	}
-
-	// kind parameter is optional (task vs pipeline)
-	kind := getParamValue(params, "kind")
-	if kind == "" {
-		kind = "task"
-	}
+	// Note: type and kind parameters are accepted but not currently used
+	// The Artifact Hub API returns the task YAML regardless of these parameters
+	// Future enhancement: validate response matches expected type/kind
 
 	// Create cache key: catalog/name@version
 	cacheKey := fmt.Sprintf("hub:%s/%s@%s", catalog, name, version)
@@ -227,11 +218,11 @@ func (p *Parser) resolveHubWithBaseURL(ctx context.Context, params []TektonParam
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch from Artifact Hub: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Artifact Hub returned HTTP %d for %s@%s", resp.StatusCode, name, version)
+		return nil, fmt.Errorf("artifact Hub returned HTTP %d for %s@%s", resp.StatusCode, name, version)
 	}
 
 	// Read and parse JSON response

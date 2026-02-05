@@ -49,7 +49,7 @@ spec:
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/x-yaml")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(tt.taskYAML))
+				_, _ = w.Write([]byte(tt.taskYAML))
 			}))
 			defer server.Close()
 
@@ -98,7 +98,7 @@ spec:
 		callCount++
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(sampleTaskYAML))
+		_, _ = w.Write([]byte(sampleTaskYAML))
 	}))
 	defer server.Close()
 
@@ -131,10 +131,10 @@ spec:
 // TestHTTPResolverErrors tests error handling
 func TestHTTPResolverErrors(t *testing.T) {
 	tests := []struct {
-		name         string
-		statusCode   int
-		responseBody string
-		expectError  bool
+		name          string
+		statusCode    int
+		responseBody  string
+		expectError   bool
 		errorContains string
 	}{
 		{
@@ -157,7 +157,7 @@ func TestHTTPResolverErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.responseBody))
+				_, _ = w.Write([]byte(tt.responseBody))
 			}))
 			defer server.Close()
 
@@ -207,7 +207,7 @@ spec:
 
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(sampleTaskYAML))
+		_, _ = w.Write([]byte(sampleTaskYAML))
 	}))
 	defer server.Close()
 
