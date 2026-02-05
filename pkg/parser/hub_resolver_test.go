@@ -15,7 +15,7 @@ func TestHubResolver(t *testing.T) {
 		"name":    "git-clone",
 		"version": "0.9.0",
 		"data": map[string]interface{}{
-			"task": `apiVersion: tekton.dev/v1
+			"manifestRaw": `apiVersion: tekton.dev/v1
 kind: Task
 metadata:
   name: git-clone
@@ -91,7 +91,7 @@ func TestHubResolverWithCache(t *testing.T) {
 		"name":    "buildah",
 		"version": "0.6.0",
 		"data": map[string]interface{}{
-			"task": `apiVersion: tekton.dev/v1
+			"manifestRaw": `apiVersion: tekton.dev/v1
 kind: Task
 metadata:
   name: buildah
@@ -203,7 +203,7 @@ func TestHubResolverDefaultCatalog(t *testing.T) {
 		"name":    "kaniko",
 		"version": "0.6.0",
 		"data": map[string]interface{}{
-			"task": `apiVersion: tekton.dev/v1
+			"manifestRaw": `apiVersion: tekton.dev/v1
 kind: Task
 metadata:
   name: kaniko
@@ -241,9 +241,10 @@ spec:
 		t.Errorf("expected task name kaniko, got %s", task.Metadata.Name)
 	}
 
-	// Verify default catalog was used in URL
-	if requestedPath != "/packages/tekton-catalog-tasks/kaniko/0.6.0" {
-		t.Errorf("expected default catalog in path, got %s", requestedPath)
+	// Verify default catalog and kind were used in URL
+	// Path format: /packages/{kind}/{catalog}/{name}/{version}
+	if requestedPath != "/packages/tekton-task/tekton-catalog-tasks/kaniko/0.6.0" {
+		t.Errorf("expected default catalog and kind in path, got %s", requestedPath)
 	}
 }
 
@@ -253,7 +254,7 @@ func TestHubResolverWithType(t *testing.T) {
 		"name":    "golang-test",
 		"version": "0.2.0",
 		"data": map[string]interface{}{
-			"task": `apiVersion: tekton.dev/v1
+			"manifestRaw": `apiVersion: tekton.dev/v1
 kind: Task
 metadata:
   name: golang-test

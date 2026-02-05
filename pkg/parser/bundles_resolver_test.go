@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"io"
@@ -50,9 +51,35 @@ spec:
 	// Create an OCI image with the Tekton task as a layer
 	img := empty.Image
 
-	// Add the task YAML as a layer using LayerFromOpener
+	// Create a tar archive containing the task YAML
+	// Bundles store YAML files as tar archives in image layers
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	// Add the YAML file to the tar
+	err = tw.WriteHeader(&tar.Header{
+		Name: "task.yaml",
+		Mode: 0644,
+		Size: int64(len(taskYAML)),
+	})
+	if err != nil {
+		t.Fatalf("failed to write tar header: %v", err)
+	}
+
+	_, err = tw.Write([]byte(taskYAML))
+	if err != nil {
+		t.Fatalf("failed to write tar content: %v", err)
+	}
+
+	err = tw.Close()
+	if err != nil {
+		t.Fatalf("failed to close tar writer: %v", err)
+	}
+
+	// Add the tar archive as a layer using LayerFromOpener
+	tarBytes := buf.Bytes()
 	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader([]byte(taskYAML))), nil
+		return io.NopCloser(bytes.NewReader(tarBytes)), nil
 	})
 	if err != nil {
 		t.Fatalf("failed to create layer: %v", err)
@@ -119,8 +146,33 @@ spec:
 	// Create and push bundle
 	bundleRef := u.Host + "/tekton/buildah:0.6"
 	img := empty.Image
+
+	// Create a tar archive containing the task YAML
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	err = tw.WriteHeader(&tar.Header{
+		Name: "task.yaml",
+		Mode: 0644,
+		Size: int64(len(taskYAML)),
+	})
+	if err != nil {
+		t.Fatalf("failed to write tar header: %v", err)
+	}
+
+	_, err = tw.Write([]byte(taskYAML))
+	if err != nil {
+		t.Fatalf("failed to write tar content: %v", err)
+	}
+
+	err = tw.Close()
+	if err != nil {
+		t.Fatalf("failed to close tar writer: %v", err)
+	}
+
+	tarBytes := buf.Bytes()
 	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader([]byte(taskYAML))), nil
+		return io.NopCloser(bytes.NewReader(tarBytes)), nil
 	})
 	if err != nil {
 		t.Fatalf("failed to create layer: %v", err)
