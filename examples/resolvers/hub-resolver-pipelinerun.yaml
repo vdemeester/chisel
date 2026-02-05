@@ -1,3 +1,7 @@
+# NOTE: Tekton Catalog tasks may not be available on Artifact Hub.
+# This example demonstrates the Hub resolver syntax.
+# For working examples, use HTTP, Git, or Bundles resolvers instead.
+
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
