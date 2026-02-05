@@ -273,9 +273,9 @@ taskRef:
 
 ### Run the example:
 
-**NOTE:** Tekton Catalog bundles require GHCR authentication even for public packages.
+**IMPORTANT:** All Tekton Catalog bundles on GHCR require authentication.
 
-**Option 1: Run with GitHub authentication**
+**Option 1: Run with GitHub authentication (recommended)**
 ```bash
 # Authenticate with GitHub Container Registry
 echo $GITHUB_TOKEN | docker login ghcr.io -u <your-username> --password-stdin
@@ -292,10 +292,17 @@ chisel run examples/resolvers/bundles-resolver-pipelinerun.yaml
 # Then modify the example to use localhost:5000 bundle reference
 ```
 
+**Option 3: Use HTTP or Git resolvers instead (no auth required)**
+```bash
+# These work without authentication
+chisel run examples/resolvers/http-resolver-pipelinerun.yaml
+chisel run examples/resolvers/git-resolver-pipelinerun.yaml
+```
+
 This example demonstrates:
-1. Using Tekton Catalog tasks from GHCR
-2. Bundle reference format with commit SHA tags
-3. Multiple bundle-based tasks in one pipeline
+1. Using Tekton Catalog tasks from GHCR bundles
+2. Bundle reference format with version tags
+3. Authentication requirements for GHCR
 
 ### Bundles Resolver Parameters
 
