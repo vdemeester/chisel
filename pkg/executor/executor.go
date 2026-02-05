@@ -172,7 +172,10 @@ func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr
 
 func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *types.ResolvedTask, pr *types.ResolvedPipelineRun, sidecars []SidecarService) error {
 	stepStart := time.Now()
-	e.log.StepStart(step.Name, step.Image)
+
+	// Substitute variables in image name for logging and execution
+	image := e.substituteVariables(step.Image, task, pr)
+	e.log.StepStart(step.Name, image)
 
 	// Apply timeout if specified
 	if step.Timeout != "" {
@@ -188,7 +191,7 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 	}
 
 	// Create container from image
-	container := e.client.Container().From(step.Image)
+	container := e.client.Container().From(image)
 
 	// Bind sidecars to container (makes them accessible by name as hostname)
 	if len(sidecars) > 0 {
