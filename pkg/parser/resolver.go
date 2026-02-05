@@ -8,9 +8,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"gopkg.in/yaml.v3"
 )
 
@@ -259,6 +263,118 @@ func (p *Parser) resolveHubWithBaseURL(ctx context.Context, params []TektonParam
 	return &task, nil
 }
 
+// resolveBundles fetches a task from an OCI bundle (Tekton Bundle)
+func (p *Parser) resolveBundles(ctx context.Context, params []TektonParam) (*TektonTask, error) {
+	// Extract required parameters
+	bundle := getParamValue(params, "bundle")
+	if bundle == "" {
+		return nil, fmt.Errorf("bundles resolver requires 'bundle' parameter")
+	}
+
+	taskName := getParamValue(params, "name")
+	if taskName == "" {
+		return nil, fmt.Errorf("bundles resolver requires 'name' parameter")
+	}
+
+	// kind parameter is optional (task vs pipeline)
+	kind := getParamValue(params, "kind")
+	if kind == "" {
+		kind = "task"
+	}
+
+	// Parse the bundle reference (registry/image:tag or registry/image@digest)
+	ref, err := name.ParseReference(bundle)
+	if err != nil {
+		return nil, fmt.Errorf("invalid bundle reference %s: %w", bundle, err)
+	}
+
+	// Create cache key using digest if available, otherwise use the full reference
+	cacheKey := fmt.Sprintf("bundle:%s/%s", ref.String(), taskName)
+
+	// Check cache first
+	if task, ok := p.taskCache[cacheKey]; ok {
+		return task, nil
+	}
+
+	// Set up authentication - use default keychain which reads from ~/.docker/config.json
+	// Can be overridden with bundle-username/bundle-password params if needed
+	authOption := remote.WithAuthFromKeychain(authn.DefaultKeychain)
+
+	// Pull the image
+	img, err := remote.Image(ref, authOption, remote.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull bundle %s: %w", bundle, err)
+	}
+
+	// Get the image manifest to extract the layers
+	manifest, err := img.Manifest()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bundle manifest: %w", err)
+	}
+
+	// Tekton bundles store the task YAML in annotations
+	// The annotation key is "dev.tekton.image.apiVersion" and "dev.tekton.image.kind"
+	// The actual task content is in a layer
+
+	// Get all layers
+	layers, err := img.Layers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bundle layers: %w", err)
+	}
+
+	// Search through layers for the task YAML
+	// Tekton bundles typically have the YAML in the first layer
+	var taskYAML []byte
+	for _, layer := range layers {
+		rc, err := layer.Uncompressed()
+		if err != nil {
+			continue
+		}
+		defer func() { _ = rc.Close() }()
+
+		data, err := io.ReadAll(rc)
+		if err != nil {
+			continue
+		}
+
+		// Try to parse as YAML to see if it's a Tekton resource
+		var task TektonTask
+		if err := yaml.Unmarshal(data, &task); err == nil {
+			// Check if this is the task we're looking for
+			// Use case-insensitive comparison for kind (Task vs task)
+			if task.Metadata.Name == taskName && strings.EqualFold(task.Kind, kind) {
+				taskYAML = data
+				break
+			}
+		}
+	}
+
+	if len(taskYAML) == 0 {
+		// Fallback: check manifest annotations
+		// Tekton bundles may store the content directly in annotations
+		if manifest.Annotations != nil {
+			if content, ok := manifest.Annotations["dev.tekton.image.content"]; ok {
+				taskYAML = []byte(content)
+			}
+		}
+	}
+
+	if len(taskYAML) == 0 {
+		return nil, fmt.Errorf("task %s not found in bundle %s", taskName, bundle)
+	}
+
+	// Parse the task YAML
+	var task TektonTask
+	if err := yaml.Unmarshal(taskYAML, &task); err != nil {
+		return nil, fmt.Errorf("failed to parse task YAML from bundle: %w", err)
+	}
+
+	// Cache the task
+	p.taskCache[cacheKey] = &task
+
+	return &task, nil
+}
+
 // resolveTaskWithResolver resolves a task using the specified resolver
 func (p *Parser) resolveTaskWithResolver(ref *TektonTaskRef) (*TektonTask, error) {
 	ctx := context.Background()
@@ -269,7 +385,7 @@ func (p *Parser) resolveTaskWithResolver(ref *TektonTaskRef) (*TektonTask, error
 	case "git":
 		return p.resolveGit(ctx, ref.Params)
 	case "bundles":
-		return nil, fmt.Errorf("bundles resolver not yet implemented")
+		return p.resolveBundles(ctx, ref.Params)
 	case "hub":
 		return p.resolveHub(ctx, ref.Params)
 	default:

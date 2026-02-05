@@ -119,6 +119,9 @@ chisel run examples/resolvers/git-resolver-pipelinerun.yaml
 
 # Remote task loading via Hub resolver (Artifact Hub catalog)
 chisel run examples/resolvers/hub-resolver-pipelinerun.yaml
+
+# Remote task loading via Bundles resolver (OCI artifacts)
+chisel run examples/resolvers/bundles-resolver-pipelinerun.yaml
 ```
 
 ## Supported Features
@@ -147,6 +150,7 @@ chisel run examples/resolvers/hub-resolver-pipelinerun.yaml
 - [x] HTTP resolver (fetch tasks from HTTP/HTTPS URLs)
 - [x] Git resolver (clone repositories and load tasks from specific paths)
 - [x] Hub resolver (fetch tasks from Artifact Hub with catalog discovery)
+- [x] Bundles resolver (pull tasks from OCI registries as Tekton Bundles)
 
 ## Architecture
 
