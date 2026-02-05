@@ -1,5 +1,5 @@
-// Package executor handles executing resolved pipelines via Dagger.
-package executor
+// Package dagger implements the Backend interface using Dagger as the execution engine.
+package dagger
 
 import (
 	"context"
@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"dagger.io/dagger"
+	daggersdk "dagger.io/dagger"
 
+	"github.com/vdemeester/chisel/pkg/backend"
 	"github.com/vdemeester/chisel/pkg/orchestrator"
 	"github.com/vdemeester/chisel/pkg/types"
 	"github.com/vdemeester/chisel/pkg/ui"
@@ -22,22 +23,25 @@ type Options struct {
 	Logger ui.Logger
 }
 
-// Executor executes resolved pipelines via Dagger
-type Executor struct {
-	client *dagger.Client
+// DaggerBackend implements the Backend interface using Dagger
+type DaggerBackend struct {
+	client *daggersdk.Client
 	opts   Options
 	log    ui.Logger
 
 	// workspaces maps workspace names to directories
-	workspaces map[string]*dagger.Directory
+	workspaces map[string]*daggersdk.Directory
 
 	// results stores task results for variable substitution
 	results map[string]map[string]string
 }
 
-// New creates a new Executor
-func New(ctx context.Context, opts Options) (*Executor, error) {
-	client, err := dagger.Connect(ctx, dagger.WithLogOutput(nil))
+// Ensure DaggerBackend implements Backend interface
+var _ backend.Backend = (*DaggerBackend)(nil)
+
+// New creates a new DaggerBackend
+func New(ctx context.Context, opts Options) (*DaggerBackend, error) {
+	client, err := daggersdk.Connect(ctx, daggersdk.WithLogOutput(nil))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to Dagger: %w", err)
 	}
@@ -47,24 +51,24 @@ func New(ctx context.Context, opts Options) (*Executor, error) {
 		log = ui.NewLogger(ui.DetectOutputMode(), nil)
 	}
 
-	return &Executor{
+	return &DaggerBackend{
 		client:     client,
 		opts:       opts,
 		log:        log,
-		workspaces: make(map[string]*dagger.Directory),
+		workspaces: make(map[string]*daggersdk.Directory),
 		results:    make(map[string]map[string]string),
 	}, nil
 }
 
 // Close closes the Dagger client
-func (e *Executor) Close() {
+func (e *DaggerBackend) Close() {
 	if e.client != nil {
 		_ = e.client.Close()
 	}
 }
 
 // Execute runs the resolved pipeline
-func (e *Executor) Execute(ctx context.Context, pr *types.ResolvedPipelineRun) error {
+func (e *DaggerBackend) Execute(ctx context.Context, pr *types.ResolvedPipelineRun) error {
 	pipelineStart := time.Now()
 	e.log.PipelineStart(pr.Name)
 
@@ -100,7 +104,7 @@ func (e *Executor) Execute(ctx context.Context, pr *types.ResolvedPipelineRun) e
 	return pipelineErr
 }
 
-func (e *Executor) createWorkspace(ctx context.Context, binding types.WorkspaceBinding) (*dagger.Directory, error) {
+func (e *DaggerBackend) createWorkspace(ctx context.Context, binding types.WorkspaceBinding) (*daggersdk.Directory, error) {
 	switch binding.Type {
 	case types.WorkspaceTypeEmptyDir:
 		return e.client.Directory(), nil
@@ -119,7 +123,7 @@ func (e *Executor) createWorkspace(ctx context.Context, binding types.WorkspaceB
 	}
 }
 
-func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) error {
+func (e *DaggerBackend) executeTask(ctx context.Context, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) error {
 	// Evaluate when conditions before executing
 	if !orchestrator.EvaluateWhen(task, task.Params, e.results) {
 		e.log.Info("task skipped (when conditions not met)", "task", task.Name)
@@ -171,7 +175,7 @@ func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr
 	return taskErr
 }
 
-func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *types.ResolvedTask, pr *types.ResolvedPipelineRun, sidecars []SidecarService) error {
+func (e *DaggerBackend) executeStep(ctx context.Context, step *types.Step, task *types.ResolvedTask, pr *types.ResolvedPipelineRun, sidecars []SidecarService) error {
 	stepStart := time.Now()
 
 	// Substitute variables in image name for logging and execution
@@ -291,7 +295,7 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 }
 
 // substituteVariables replaces Tekton variable references with actual values
-func (e *Executor) substituteVariables(input string, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) string {
+func (e *DaggerBackend) substituteVariables(input string, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) string {
 	result := input
 
 	// Replace $(params.name) with task params (handles string, array[*], array[N], object.field)
@@ -378,7 +382,7 @@ func (e *Executor) substituteVariables(input string, task *types.ResolvedTask, p
 }
 
 // mountVolumes mounts task volumes into the container based on step's volumeMounts.
-func (e *Executor) mountVolumes(container *dagger.Container, step *types.Step, task *types.ResolvedTask) *dagger.Container {
+func (e *DaggerBackend) mountVolumes(container *daggersdk.Container, step *types.Step, task *types.ResolvedTask) *daggersdk.Container {
 	if len(step.VolumeMounts) == 0 || len(task.Volumes) == 0 {
 		return container
 	}
@@ -415,4 +419,110 @@ func (e *Executor) mountVolumes(container *dagger.Container, step *types.Step, t
 	}
 
 	return container
+}
+
+// ExecuteStep implements backend.Backend
+func (e *DaggerBackend) ExecuteStep(ctx context.Context, req *backend.StepRequest) (*backend.StepResult, error) {
+	// Build container from image
+	container := e.client.Container().From(req.Image)
+
+	// Set environment variables
+	for k, v := range req.Env {
+		container = container.WithEnvVariable(k, v)
+	}
+
+	// Set working directory
+	if req.WorkDir != "" {
+		container = container.WithWorkdir(req.WorkDir)
+	}
+
+	// Mount workspaces
+	for _, ws := range req.Workspaces {
+		if ws.SourceType == "emptyDir" || ws.SourceType == "local" {
+			if dir, ok := e.workspaces[ws.Name]; ok {
+				container = container.WithDirectory(ws.MountPath, dir)
+			}
+		}
+	}
+
+	// Bind sidecars
+	for _, sidecarHandle := range req.Sidecars {
+		if svc, ok := sidecarHandle.Metadata["service"].(*daggersdk.Service); ok {
+			container = container.WithServiceBinding(sidecarHandle.Name, svc)
+		}
+	}
+
+	// Execute command
+	cmd := append(req.Command, req.Args...)
+	container = container.WithExec(cmd)
+
+	// Get stdout and stderr
+	stdout, err := container.Stdout(ctx)
+	if err != nil {
+		return &backend.StepResult{
+			ExitCode: 1,
+			Error:    err,
+		}, err
+	}
+
+	stderr, _ := container.Stderr(ctx)
+
+	return &backend.StepResult{
+		ExitCode: 0,
+		Stdout:   stdout,
+		Stderr:   stderr,
+		Results:  make(map[string]string),
+	}, nil
+}
+
+// StartSidecar implements backend.Backend
+func (e *DaggerBackend) StartSidecar(ctx context.Context, req *backend.SidecarRequest) (*backend.SidecarHandle, error) {
+	container := e.client.Container().From(req.Image)
+
+	// Set environment variables
+	for k, v := range req.Env {
+		container = container.WithEnvVariable(k, v)
+	}
+
+	// Execute command
+	if len(req.Command) > 0 {
+		container = container.WithExec(req.Command)
+	}
+
+	// Expose ports
+	for _, port := range req.Ports {
+		container = container.WithExposedPort(int(port))
+	}
+
+	// Start as service
+	service := container.AsService()
+
+	return &backend.SidecarHandle{
+		ID:      req.Name,
+		Name:    req.Name,
+		Backend: "dagger",
+		Metadata: map[string]interface{}{
+			"service": service,
+		},
+	}, nil
+}
+
+// StopSidecar implements backend.Backend
+func (e *DaggerBackend) StopSidecar(ctx context.Context, handle *backend.SidecarHandle) error {
+	// Dagger services are automatically cleaned up when the client closes
+	return nil
+}
+
+// ReadResult implements backend.Backend
+func (e *DaggerBackend) ReadResult(ctx context.Context, req *backend.ResultRequest) (string, error) {
+	// For Dagger, we can't easily read from a completed container
+	// This is handled differently in the current implementation
+	// Return empty for now - actual result reading happens in executeStep
+	return "", nil
+}
+
+// Cleanup implements backend.Backend
+func (e *DaggerBackend) Cleanup(ctx context.Context) error {
+	e.Close()
+	return nil
 }

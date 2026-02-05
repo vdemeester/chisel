@@ -1,7 +1,7 @@
-package executor
+package dagger
 
 import (
-	"dagger.io/dagger"
+	daggersdk "dagger.io/dagger"
 
 	"github.com/vdemeester/chisel/pkg/types"
 )
@@ -19,13 +19,13 @@ type SidecarConfig struct {
 // SidecarService represents a running sidecar service.
 type SidecarService struct {
 	Name    string
-	Service *dagger.Service
+	Service *daggersdk.Service
 	Ports   []int
 }
 
 // startSidecars starts all sidecar containers for a task and returns their services.
 // The returned services can be bound to step containers using WithServiceBinding.
-func startSidecars(client *dagger.Client, task *types.ResolvedTask) ([]SidecarService, error) {
+func startSidecars(client *daggersdk.Client, task *types.ResolvedTask) ([]SidecarService, error) {
 	if len(task.Sidecars) == 0 {
 		return nil, nil
 	}
@@ -102,7 +102,7 @@ func buildSidecarConfig(sidecar types.Sidecar) SidecarConfig {
 
 // bindSidecarsToContainer binds sidecar services to a container.
 // Each sidecar is accessible by its name as the hostname.
-func bindSidecarsToContainer(container *dagger.Container, services []SidecarService) *dagger.Container {
+func bindSidecarsToContainer(container *daggersdk.Container, services []SidecarService) *daggersdk.Container {
 	for _, svc := range services {
 		container = container.WithServiceBinding(svc.Name, svc.Service)
 	}
