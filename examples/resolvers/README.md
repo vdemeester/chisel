@@ -74,11 +74,95 @@ This example:
        value: https://raw.githubusercontent.com/org/repo/main/tasks/my-task.yaml
    ```
 
+## Git Resolver
+
+The Git resolver clones Git repositories and extracts task definitions from specific paths.
+
+### Example: Using Tekton Catalog via Git
+
+```yaml
+taskRef:
+  resolver: git
+  params:
+  - name: url
+    value: https://github.com/tektoncd/catalog.git
+  - name: revision
+    value: main
+  - name: pathInRepo
+    value: task/git-clone/0.9/git-clone.yaml
+```
+
+### Run the example:
+
+```bash
+chisel run examples/resolvers/git-resolver-pipelinerun.yaml
+```
+
+This example:
+1. Fetches the `git-clone` task from Tekton Catalog via Git
+2. Fetches the `buildah` task from Tekton Catalog
+3. Demonstrates multiple git-resolved tasks in one pipeline
+
+### Git Resolver Parameters
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `url` | Yes | Git repository URL (HTTPS or SSH) |
+| `revision` | Yes | Branch name, tag, or commit SHA |
+| `pathInRepo` | Yes | Path to task YAML within repository |
+
+### Features
+
+- **Caching**: Cloned repositories are cached to avoid redundant clones
+- **Shallow Clone**: Uses depth=1 for efficiency (except for commit SHAs)
+- **Multiple Revisions**: Supports branches, tags, and commit SHAs
+- **Error Handling**: Clear messages for clone failures, missing paths
+
+### Use Cases
+
+1. **Tekton Catalog**: Access community-maintained tasks
+   ```yaml
+   taskRef:
+     resolver: git
+     params:
+     - name: url
+       value: https://github.com/tektoncd/catalog.git
+     - name: revision
+       value: main
+     - name: pathInRepo
+       value: task/kaniko/0.6/kaniko.yaml
+   ```
+
+2. **Private Repositories**: Use your company's task library
+   ```yaml
+   taskRef:
+     resolver: git
+     params:
+     - name: url
+       value: https://github.com/company/tekton-tasks.git
+     - name: revision
+       value: v1.2.3
+     - name: pathInRepo
+       value: tasks/security-scan.yaml
+   ```
+
+3. **Version Pinning**: Pin to specific commits for reproducibility
+   ```yaml
+   taskRef:
+     resolver: git
+     params:
+     - name: url
+       value: https://github.com/tektoncd/catalog.git
+     - name: revision
+       value: abc123def456  # Specific commit SHA
+     - name: pathInRepo
+       value: task/git-clone/0.9/git-clone.yaml
+   ```
+
 ## Future Resolvers
 
 The following resolvers are planned:
 
-- **Git Resolver**: Clone repositories and extract tasks from specific paths
 - **Hub Resolver**: Fetch tasks from Artifact Hub with version constraints
 - **Bundles Resolver**: Pull tasks from OCI registries as Tekton Bundles
 

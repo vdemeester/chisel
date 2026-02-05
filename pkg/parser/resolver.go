@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"gopkg.in/yaml.v3"
 )
 
@@ -65,6 +69,103 @@ func (p *Parser) resolveHTTP(ctx context.Context, params []TektonParam) (*Tekton
 	return &task, nil
 }
 
+// resolveGit clones a Git repository and fetches a task from a specific path
+func (p *Parser) resolveGit(ctx context.Context, params []TektonParam) (*TektonTask, error) {
+	// Extract required parameters
+	url := getParamValue(params, "url")
+	if url == "" {
+		return nil, fmt.Errorf("git resolver requires 'url' parameter")
+	}
+
+	revision := getParamValue(params, "revision")
+	if revision == "" {
+		return nil, fmt.Errorf("git resolver requires 'revision' parameter")
+	}
+
+	pathInRepo := getParamValue(params, "pathInRepo")
+	if pathInRepo == "" {
+		return nil, fmt.Errorf("git resolver requires 'pathInRepo' parameter")
+	}
+
+	// Create cache key: url@revision/path
+	cacheKey := fmt.Sprintf("%s@%s/%s", url, revision, pathInRepo)
+
+	// Check cache first
+	if task, ok := p.taskCache[cacheKey]; ok {
+		return task, nil
+	}
+
+	// Create temporary directory for cloning
+	tmpDir, err := os.MkdirTemp("", "chisel-git-")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Clone options with shallow clone for efficiency
+	cloneOpts := &git.CloneOptions{
+		URL:           url,
+		Depth:         1,
+		SingleBranch:  true,
+		Tags:          git.NoTags,
+		Progress:      nil, // Suppress clone progress
+	}
+
+	// Try to parse revision as a branch/tag reference first
+	// If it's a commit SHA, we'll handle that differently
+	if len(revision) == 40 {
+		// Likely a commit SHA - need full clone
+		cloneOpts.Depth = 0
+	} else {
+		// Branch or tag
+		cloneOpts.ReferenceName = plumbing.NewBranchReferenceName(revision)
+	}
+
+	// Perform the clone
+	repo, err := git.PlainCloneContext(ctx, tmpDir, false, cloneOpts)
+	if err != nil {
+		// If branch failed, try as a tag
+		cloneOpts.ReferenceName = plumbing.NewTagReferenceName(revision)
+		repo, err = git.PlainCloneContext(ctx, tmpDir, false, cloneOpts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to clone repository %s: %w", url, err)
+		}
+	}
+
+	// If revision is a commit SHA, checkout that specific commit
+	if len(revision) == 40 {
+		w, err := repo.Worktree()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get worktree: %w", err)
+		}
+
+		err = w.Checkout(&git.CheckoutOptions{
+			Hash: plumbing.NewHash(revision),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to checkout commit %s: %w", revision, err)
+		}
+	}
+
+	// Read the task file from the cloned repository
+	taskPath := filepath.Join(tmpDir, pathInRepo)
+	data, err := os.ReadFile(taskPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read task file %s: %w", pathInRepo, err)
+	}
+
+	// Parse YAML
+	var task TektonTask
+	if err := yaml.Unmarshal(data, &task); err != nil {
+		return nil, fmt.Errorf("failed to parse task YAML from %s: %w", pathInRepo, err)
+	}
+
+	// Cache the task
+	p.taskCache[cacheKey] = &task
+
+	return &task, nil
+}
+
 // resolveTaskWithResolver resolves a task using the specified resolver
 func (p *Parser) resolveTaskWithResolver(ref *TektonTaskRef) (*TektonTask, error) {
 	ctx := context.Background()
@@ -73,7 +174,7 @@ func (p *Parser) resolveTaskWithResolver(ref *TektonTaskRef) (*TektonTask, error
 	case "http":
 		return p.resolveHTTP(ctx, ref.Params)
 	case "git":
-		return nil, fmt.Errorf("git resolver not yet implemented")
+		return p.resolveGit(ctx, ref.Params)
 	case "bundles":
 		return nil, fmt.Errorf("bundles resolver not yet implemented")
 	case "hub":
