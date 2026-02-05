@@ -113,6 +113,9 @@ chisel run examples/simple/matrix-pipelinerun.yaml
 
 # Remote task loading via HTTP resolver
 chisel run examples/resolvers/http-resolver-pipelinerun.yaml
+
+# Remote task loading via Git resolver (clone from GitHub)
+chisel run examples/resolvers/git-resolver-pipelinerun.yaml
 ```
 
 ## Supported Features
@@ -139,6 +142,7 @@ chisel run examples/resolvers/http-resolver-pipelinerun.yaml
 - [x] stepTemplate defaults (image, env, workingDir, command, volumeMounts)
 - [x] Matrix builds (run tasks with multiple parameter combinations)
 - [x] HTTP resolver (fetch tasks from HTTP/HTTPS URLs)
+- [x] Git resolver (clone repositories and load tasks from specific paths)
 
 ## Architecture
 

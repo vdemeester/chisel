@@ -1,0 +1,50 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: git-resolver-demo
+spec:
+  pipelineSpec:
+    tasks:
+    - name: clone-with-git-task
+      taskRef:
+        resolver: git
+        params:
+        - name: url
+          value: https://github.com/tektoncd/catalog.git
+        - name: revision
+          value: main
+        - name: pathInRepo
+          value: task/git-clone/0.9/git-clone.yaml
+      params:
+      - name: url
+        value: https://github.com/tektoncd/pipeline
+      - name: revision
+        value: main
+      workspaces:
+      - name: output
+        workspace: source
+
+    - name: build-with-buildah
+      taskRef:
+        resolver: git
+        params:
+        - name: url
+          value: https://github.com/tektoncd/catalog.git
+        - name: revision
+          value: main
+        - name: pathInRepo
+          value: task/buildah/0.6/buildah.yaml
+      params:
+      - name: IMAGE
+        value: localhost/myimage:latest
+      - name: DOCKERFILE
+        value: ./Dockerfile
+      workspaces:
+      - name: source
+        workspace: source
+      runAfter:
+      - clone-with-git-task
+
+  workspaces:
+  - name: source
+    emptyDir: {}
