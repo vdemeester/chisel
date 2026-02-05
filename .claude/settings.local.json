@@ -49,7 +49,8 @@
       "Bash(git -C ~/.local/share/worktrees/vdemeester/chisel/feature-resolvers add pkg/parser/parser.go pkg/parser/resolver.go pkg/parser/resolver_test.go pkg/parser/integration_resolver_test.go examples/resolvers/)",
       "Bash(git -C ~/.local/share/worktrees/vdemeester/chisel/feature-resolvers status --short)",
       "Bash(ls:*)",
-      "Bash(./chisel run:*)"
+      "Bash(./chisel run:*)",
+      "Bash(docker pull:*)"
     ]
   }
 }

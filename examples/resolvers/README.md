@@ -257,14 +257,14 @@ Tasks are extracted from the `data.task` field in the JSON response.
 
 The Bundles resolver fetches tasks from OCI registries as Tekton Bundles. This is the most production-ready approach for versioned task distribution.
 
-### Example: Using Bundles
+### Example: Using Tekton Catalog Bundles
 
 ```yaml
 taskRef:
   resolver: bundles
   params:
   - name: bundle
-    value: your-registry.io/tasks/git-clone:0.9
+    value: ghcr.io/tektoncd/catalog/upstream/tasks/git-clone:656d45176d5dafcfecf8253132f5a8642bb125c3
   - name: name
     value: git-clone
   - name: kind
@@ -273,26 +273,29 @@ taskRef:
 
 ### Run the example:
 
-The provided example uses Git resolver as a working alternative since public Tekton bundles require authentication. To test bundles resolver:
+**NOTE:** Tekton Catalog bundles require GHCR authentication even for public packages.
 
-**Option 1: Create a local test bundle**
+**Option 1: Run with GitHub authentication**
 ```bash
-# Use the helper script
-./examples/resolvers/create-test-bundle.sh localhost:5000 v1
+# Authenticate with GitHub Container Registry
+echo $GITHUB_TOKEN | docker login ghcr.io -u <your-username> --password-stdin
 
-# Or manually with tkn CLI
-tkn bundle push localhost:5000/tasks/hello:v1 -f your-task.yaml
-```
-
-**Option 2: Use the Git resolver example (works immediately)**
-```bash
+# Run the example
 chisel run examples/resolvers/bundles-resolver-pipelinerun.yaml
 ```
 
+**Option 2: Create a local test bundle (no auth required)**
+```bash
+# Use the helper script to create a bundle in local registry
+./examples/resolvers/create-test-bundle.sh localhost:5000 v1
+
+# Then modify the example to use localhost:5000 bundle reference
+```
+
 This example demonstrates:
-1. Git resolver for immediate testing (no auth required)
-2. Commented bundles resolver syntax for reference
-3. How to structure bundle-based pipelines
+1. Using Tekton Catalog tasks from GHCR
+2. Bundle reference format with commit SHA tags
+3. Multiple bundle-based tasks in one pipeline
 
 ### Bundles Resolver Parameters
 
@@ -311,16 +314,19 @@ This example demonstrates:
 
 ### Use Cases
 
-1. **Tekton Catalog Bundles**: Use official Tekton catalog tasks
+1. **Tekton Catalog Bundles**: Use official Tekton catalog tasks (requires GHCR auth)
    ```yaml
    taskRef:
      resolver: bundles
      params:
      - name: bundle
-       value: gcr.io/tekton-releases/catalog/upstream/kaniko:0.6
+       # Format: ghcr.io/tektoncd/catalog/upstream/tasks/<task-name>:<commit-sha>
+       value: ghcr.io/tektoncd/catalog/upstream/tasks/golang-test:656d45176d5dafcfecf8253132f5a8642bb125c3
      - name: name
-       value: kaniko
+       value: golang-test
    ```
+
+   Browse available tasks: https://github.com/orgs/tektoncd/packages?repo_name=catalog
 
 2. **Private Registry**: Use your organization's private bundles
    ```yaml
