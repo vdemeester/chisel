@@ -57,7 +57,7 @@ spec:
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(mockPackageResponse)
+				_ = json.NewEncoder(w).Encode(mockPackageResponse)
 			}))
 			defer server.Close()
 
@@ -108,7 +108,7 @@ spec:
 		callCount++
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(mockPackageResponse)
+		_ = json.NewEncoder(w).Encode(mockPackageResponse)
 	}))
 	defer server.Close()
 
@@ -220,7 +220,7 @@ spec:
 		requestedPath = r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(mockPackageResponse)
+		_ = json.NewEncoder(w).Encode(mockPackageResponse)
 	}))
 	defer server.Close()
 
@@ -268,7 +268,7 @@ spec:
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(mockPackageResponse)
+		_ = json.NewEncoder(w).Encode(mockPackageResponse)
 	}))
 	defer server.Close()
 
@@ -296,7 +296,7 @@ func TestHubResolverInvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 

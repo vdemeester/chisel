@@ -9,12 +9,12 @@ import (
 // TestGitResolver tests loading tasks from Git repositories
 func TestGitResolver(t *testing.T) {
 	tests := []struct {
-		name         string
-		url          string
-		revision     string
-		pathInRepo   string
-		expectError  bool
-		expectName   string
+		name        string
+		url         string
+		revision    string
+		pathInRepo  string
+		expectError bool
+		expectName  string
 	}{
 		{
 			name:        "valid task from public repo",
@@ -192,7 +192,8 @@ func TestGitResolverCacheKeyUniqueness(t *testing.T) {
 
 	// Both should be valid and different
 	if task1 == nil || task2 == nil {
-		t.Error("both tasks should be valid")
+		t.Fatal("both tasks should be valid")
+		return
 	}
 
 	if task1.Metadata.Name == task2.Metadata.Name {
