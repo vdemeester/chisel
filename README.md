@@ -110,6 +110,9 @@ chisel run examples/simple/steptemplate-pipelinerun.yaml
 
 # Matrix builds (run task with multiple parameter combinations)
 chisel run examples/simple/matrix-pipelinerun.yaml
+
+# Remote task loading via HTTP resolver
+chisel run examples/resolvers/http-resolver-pipelinerun.yaml
 ```
 
 ## Supported Features
@@ -135,6 +138,7 @@ chisel run examples/simple/matrix-pipelinerun.yaml
 - [x] Conditional execution (`when` clauses with `in`/`notin` operators)
 - [x] stepTemplate defaults (image, env, workingDir, command, volumeMounts)
 - [x] Matrix builds (run tasks with multiple parameter combinations)
+- [x] HTTP resolver (fetch tasks from HTTP/HTTPS URLs)
 
 ## Architecture
 
