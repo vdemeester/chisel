@@ -159,11 +159,104 @@ This example:
        value: task/git-clone/0.9/git-clone.yaml
    ```
 
+## Hub Resolver (Artifact Hub)
+
+The Hub resolver fetches tasks from Artifact Hub, providing catalog discovery and version management.
+
+### Example: Using Artifact Hub Catalog
+
+```yaml
+taskRef:
+  resolver: hub
+  params:
+  - name: name
+    value: git-clone
+  - name: version
+    value: "0.9"
+  - name: catalog
+    value: tekton-catalog-tasks
+  - name: type
+    value: artifact
+```
+
+### Run the example:
+
+```bash
+chisel run examples/resolvers/hub-resolver-pipelinerun.yaml
+```
+
+This example:
+1. Fetches the `git-clone` task from Artifact Hub
+2. Fetches the `buildah` task from Artifact Hub
+3. Demonstrates catalog-based task discovery
+
+### Hub Resolver Parameters
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `name` | Yes | - | Task name in the catalog |
+| `version` | Yes | - | Task version (exact version string) |
+| `catalog` | No | `tekton-catalog-tasks` | Catalog name on Artifact Hub |
+| `type` | No | `artifact` | Hub type (`artifact` recommended, `tekton` deprecated) |
+| `kind` | No | `task` | Resource kind (`task` or `pipeline`) |
+
+### Features
+
+- **Catalog Discovery**: Browse available tasks on Artifact Hub
+- **Version Management**: Specify exact versions
+- **Caching**: Tasks cached by catalog/name@version
+- **Default Catalog**: Uses `tekton-catalog-tasks` by default
+
+### Use Cases
+
+1. **Community Tasks**: Access curated Tekton tasks
+   ```yaml
+   taskRef:
+     resolver: hub
+     params:
+     - name: name
+       value: kaniko
+     - name: version
+       value: "0.6"
+   ```
+
+2. **Custom Catalogs**: Use your organization's Artifact Hub catalog
+   ```yaml
+   taskRef:
+     resolver: hub
+     params:
+     - name: name
+       value: security-scan
+     - name: version
+       value: "1.2.0"
+     - name: catalog
+       value: mycompany-tekton-tasks
+   ```
+
+3. **Version Pinning**: Ensure reproducible builds
+   ```yaml
+   taskRef:
+     resolver: hub
+     params:
+     - name: name
+       value: golang-build
+     - name: version
+       value: "0.3.0"  # Exact version
+   ```
+
+### Artifact Hub API
+
+The Hub resolver queries the Artifact Hub API:
+```
+GET https://artifacthub.io/api/v1/packages/{catalog}/{name}/{version}
+```
+
+Tasks are extracted from the `data.task` field in the JSON response.
+
 ## Future Resolvers
 
 The following resolvers are planned:
 
-- **Hub Resolver**: Fetch tasks from Artifact Hub with version constraints
 - **Bundles Resolver**: Pull tasks from OCI registries as Tekton Bundles
 
 ## Combining Local and Remote Tasks

@@ -116,6 +116,9 @@ chisel run examples/resolvers/http-resolver-pipelinerun.yaml
 
 # Remote task loading via Git resolver (clone from GitHub)
 chisel run examples/resolvers/git-resolver-pipelinerun.yaml
+
+# Remote task loading via Hub resolver (Artifact Hub catalog)
+chisel run examples/resolvers/hub-resolver-pipelinerun.yaml
 ```
 
 ## Supported Features
@@ -143,6 +146,7 @@ chisel run examples/resolvers/git-resolver-pipelinerun.yaml
 - [x] Matrix builds (run tasks with multiple parameter combinations)
 - [x] HTTP resolver (fetch tasks from HTTP/HTTPS URLs)
 - [x] Git resolver (clone repositories and load tasks from specific paths)
+- [x] Hub resolver (fetch tasks from Artifact Hub with catalog discovery)
 
 ## Architecture
 
