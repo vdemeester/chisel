@@ -1,10 +1,7 @@
 # Tekton Bundles Resolver Example
 #
 # Tekton Catalog publishes tasks as OCI bundles to GitHub Container Registry (GHCR).
-# Bundle reference format: ghcr.io/tektoncd/catalog/upstream/tasks/<task-name>:<commit-sha>
-#
-# NOTE: GHCR requires authentication even for public packages.
-# To authenticate: echo $GITHUB_TOKEN | docker login ghcr.io -u <username> --password-stdin
+# Bundle reference format: ghcr.io/tektoncd/catalog/upstream/tasks/<task-name>:<version>
 #
 # Available tasks: https://github.com/orgs/tektoncd/packages?repo_name=catalog
 # See create-test-bundle.sh for creating your own bundles in a local registry.
@@ -21,9 +18,8 @@ spec:
         resolver: bundles
         params:
         - name: bundle
-          # Latest git-clone task from Tekton Catalog (commit SHA as tag)
-          # Replace with actual commit SHA from: https://github.com/tektoncd/catalog/pkgs/container/catalog%2Fupstream%2Ftasks%2Fgit-clone
-          value: ghcr.io/tektoncd/catalog/upstream/tasks/git-clone:656d45176d5dafcfecf8253132f5a8642bb125c3
+          # Publicly available git-clone task from Tekton Catalog
+          value: ghcr.io/tektoncd/catalog/upstream/tasks/git-clone:0.7
         - name: name
           value: git-clone
         - name: kind
@@ -37,22 +33,16 @@ spec:
       - name: output
         workspace: source
 
-    - name: build-from-bundle
-      taskRef:
-        resolver: bundles
-        params:
-        - name: bundle
-          # golang-build task from Tekton Catalog (latest)
-          value: ghcr.io/tektoncd/catalog/upstream/tasks/golang-build:656d45176d5dafcfecf8253132f5a8642bb125c3
-        - name: name
-          value: golang-build
-        - name: kind
-          value: task
-      params:
-      - name: package
-        value: github.com/tektoncd/pipeline
-      - name: packages
-        value: ./cmd/...
+    - name: list-files
+      taskSpec:
+        workspaces:
+        - name: source
+        steps:
+        - name: list
+          image: alpine:3.19
+          script: |
+            echo "Files cloned from bundle resolver:"
+            ls -la $(workspaces.source.path)
       workspaces:
       - name: source
         workspace: source

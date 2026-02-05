@@ -1,7 +1,3 @@
-# NOTE: Tekton Catalog tasks may not be available on Artifact Hub.
-# This example demonstrates the Hub resolver syntax.
-# For working examples, use HTTP, Git, or Bundles resolvers instead.
-
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
@@ -16,11 +12,9 @@ spec:
         - name: name
           value: git-clone
         - name: version
-          value: "0.9"
+          value: "0.10.0"
         - name: catalog
           value: tekton-catalog-tasks
-        - name: type
-          value: artifact
         - name: kind
           value: task
       params:
@@ -39,9 +33,9 @@ spec:
         - name: name
           value: buildah
         - name: version
-          value: "0.6"
-        - name: type
-          value: artifact
+          value: "0.9.0"
+        - name: kind
+          value: task
       params:
       - name: IMAGE
         value: localhost/myimage:latest

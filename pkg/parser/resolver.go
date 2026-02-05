@@ -196,9 +196,18 @@ func (p *Parser) resolveHubWithBaseURL(ctx context.Context, params []TektonParam
 		catalog = "tekton-catalog-tasks" // Default catalog
 	}
 
-	// Note: type and kind parameters are accepted but not currently used
-	// The Artifact Hub API returns the task YAML regardless of these parameters
-	// Future enhancement: validate response matches expected type/kind
+	// kind parameter determines the Artifact Hub package kind
+	kind := getParamValue(params, "kind")
+	if kind == "" {
+		kind = "task" // Default to task
+	}
+
+	// Map kind to Artifact Hub package kind
+	// Artifact Hub uses "tekton-task" and "tekton-pipeline" as package kinds
+	packageKind := "tekton-task"
+	if strings.EqualFold(kind, "pipeline") {
+		packageKind = "tekton-pipeline"
+	}
 
 	// Create cache key: catalog/name@version
 	cacheKey := fmt.Sprintf("hub:%s/%s@%s", catalog, name, version)
@@ -209,8 +218,9 @@ func (p *Parser) resolveHubWithBaseURL(ctx context.Context, params []TektonParam
 	}
 
 	// Construct Artifact Hub API URL
-	// Format: /packages/{catalog}/{name}/{version}
-	url := fmt.Sprintf("%s/packages/%s/%s/%s", baseURL, catalog, name, version)
+	// Format: /packages/{kind}/{catalog}/{name}/{version}
+	// Example: /packages/tekton-task/tekton-catalog-tasks/git-clone/0.10.0
+	url := fmt.Sprintf("%s/packages/%s/%s/%s/%s", baseURL, packageKind, catalog, name, version)
 
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -238,7 +248,7 @@ func (p *Parser) resolveHubWithBaseURL(ctx context.Context, params []TektonParam
 
 	var pkgData struct {
 		Data struct {
-			Task string `json:"task"`
+			ManifestRaw string `json:"manifestRaw"`
 		} `json:"data"`
 	}
 
@@ -247,7 +257,7 @@ func (p *Parser) resolveHubWithBaseURL(ctx context.Context, params []TektonParam
 	}
 
 	// Extract task YAML from the data field
-	taskYAML := pkgData.Data.Task
+	taskYAML := pkgData.Data.ManifestRaw
 	if taskYAML == "" {
 		return nil, fmt.Errorf("no task YAML found in Artifact Hub package %s@%s", name, version)
 	}
