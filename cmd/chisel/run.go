@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/vdemeester/chisel/pkg/executor"
+	"github.com/vdemeester/chisel/pkg/backend/dagger"
 	"github.com/vdemeester/chisel/pkg/parser"
 	"github.com/vdemeester/chisel/pkg/ui"
 )
@@ -126,17 +126,17 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Execute via Dagger
-	exec, err := executor.New(ctx, executor.Options{
+	// Execute via Dagger backend
+	backend, err := dagger.New(ctx, dagger.Options{
 		Debug:  debug,
 		Logger: log,
 	})
 	if err != nil {
-		return fail(fmt.Errorf("failed to create executor: %w", err))
+		return fail(fmt.Errorf("failed to create Dagger backend: %w", err))
 	}
-	defer exec.Close()
+	defer backend.Close()
 
-	if err := exec.Execute(ctx, resolved); err != nil {
+	if err := backend.Execute(ctx, resolved); err != nil {
 		return fail(fmt.Errorf("execution failed: %w", err))
 	}
 
