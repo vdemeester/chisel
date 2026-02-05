@@ -32,6 +32,11 @@ func (p *Parser) resolveHTTP(ctx context.Context, params []TektonParam) (*Tekton
 		return task, nil
 	}
 
+	// Log fetch operation
+	if p.logger != nil {
+		p.logger.Info("Fetching task from HTTP", "url", url)
+	}
+
 	// Create HTTP request with context
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -99,6 +104,11 @@ func (p *Parser) resolveGit(ctx context.Context, params []TektonParam) (*TektonT
 	// Check cache first
 	if task, ok := p.taskCache[cacheKey]; ok {
 		return task, nil
+	}
+
+	// Log fetch operation
+	if p.logger != nil {
+		p.logger.Info("Fetching task from Git", "url", url, "revision", revision, "path", pathInRepo)
 	}
 
 	// Create temporary directory for cloning
@@ -217,6 +227,11 @@ func (p *Parser) resolveHubWithBaseURL(ctx context.Context, params []TektonParam
 		return task, nil
 	}
 
+	// Log fetch operation
+	if p.logger != nil {
+		p.logger.Info("Fetching task from Artifact Hub", "catalog", catalog, "name", name, "version", version)
+	}
+
 	// Construct Artifact Hub API URL
 	// Format: /packages/{kind}/{catalog}/{name}/{version}
 	// Example: /packages/tekton-task/tekton-catalog-tasks/git-clone/0.10.0
@@ -305,6 +320,11 @@ func (p *Parser) resolveBundles(ctx context.Context, params []TektonParam) (*Tek
 	// Check cache first
 	if task, ok := p.taskCache[cacheKey]; ok {
 		return task, nil
+	}
+
+	// Log fetch operation
+	if p.logger != nil {
+		p.logger.Info("Fetching task from OCI bundle", "bundle", bundle, "name", taskName)
 	}
 
 	// Set up authentication - use default keychain which reads from ~/.docker/config.json

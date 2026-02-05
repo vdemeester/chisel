@@ -88,6 +88,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	p := parser.New(parser.Options{
 		TasksDir: tasksDir,
 		Debug:    debug,
+		Logger:   log,
 	})
 
 	resolved, err := p.ParsePipelineRun(pipelineRunPath)

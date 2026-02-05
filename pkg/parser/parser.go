@@ -10,6 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/vdemeester/chisel/pkg/types"
+	"github.com/vdemeester/chisel/pkg/ui"
 )
 
 // Options configures the parser
@@ -18,12 +19,15 @@ type Options struct {
 	TasksDir string
 	// Debug enables debug output
 	Debug bool
+	// Logger for informational output
+	Logger ui.Logger
 }
 
 // Parser parses Tekton YAML files
 type Parser struct {
 	opts      Options
 	taskCache map[string]*TektonTask
+	logger    ui.Logger
 }
 
 // New creates a new Parser
@@ -31,6 +35,7 @@ func New(opts Options) *Parser {
 	return &Parser{
 		opts:      opts,
 		taskCache: make(map[string]*TektonTask),
+		logger:    opts.Logger,
 	}
 }
 
