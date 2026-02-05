@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ func TestParseVolumes_EmptyDir(t *testing.T) {
 		},
 	}
 
-	parsed := parseVolumes(volumes)
+	parsed := ParseVolumes(volumes)
 
 	if len(parsed) != 1 {
 		t.Fatalf("Expected 1 volume, got %d", len(parsed))
@@ -41,7 +41,7 @@ func TestParseVolumes_ConfigMap(t *testing.T) {
 		},
 	}
 
-	parsed := parseVolumes(volumes)
+	parsed := ParseVolumes(volumes)
 
 	if len(parsed) != 1 {
 		t.Fatalf("Expected 1 volume, got %d", len(parsed))
@@ -66,7 +66,7 @@ func TestParseVolumes_Secret(t *testing.T) {
 		},
 	}
 
-	parsed := parseVolumes(volumes)
+	parsed := ParseVolumes(volumes)
 
 	if len(parsed) != 1 {
 		t.Fatalf("Expected 1 volume, got %d", len(parsed))

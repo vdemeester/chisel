@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"strings"
@@ -6,10 +6,10 @@ import (
 	"github.com/vdemeester/chisel/pkg/types"
 )
 
-// evaluateWhen evaluates all when expressions for a task.
+// EvaluateWhen evaluates all when expressions for a task.
 // Returns true if the task should run, false if it should be skipped.
 // All expressions must evaluate to true for the task to run.
-func evaluateWhen(task *types.ResolvedTask, params map[string]types.ParamValue, results map[string]map[string]string) bool {
+func EvaluateWhen(task *types.ResolvedTask, params map[string]types.ParamValue, results map[string]map[string]string) bool {
 	if len(task.When) == 0 {
 		return true
 	}

@@ -1,10 +1,10 @@
-package executor
+package orchestrator
 
 import "github.com/vdemeester/chisel/pkg/types"
 
-// applyStepTemplate applies default values from a StepTemplate to a Step.
+// ApplyStepTemplate applies default values from a StepTemplate to a Step.
 // Step values take precedence over template values.
-func applyStepTemplate(step types.Step, template *types.StepTemplate) types.Step {
+func ApplyStepTemplate(step types.Step, template *types.StepTemplate) types.Step {
 	if template == nil {
 		return step
 	}

@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"github.com/vdemeester/chisel/pkg/types"
@@ -31,8 +31,8 @@ type ParsedVolumeMount struct {
 	ReadOnly  bool
 }
 
-// parseVolumes converts Volume definitions to ParsedVolume map.
-func parseVolumes(volumes []types.Volume) map[string]*ParsedVolume {
+// ParseVolumes converts Volume definitions to ParsedVolume map.
+func ParseVolumes(volumes []types.Volume) map[string]*ParsedVolume {
 	result := make(map[string]*ParsedVolume)
 
 	for _, v := range volumes {

@@ -9,6 +9,7 @@ import (
 
 	"dagger.io/dagger"
 
+	"github.com/vdemeester/chisel/pkg/orchestrator"
 	"github.com/vdemeester/chisel/pkg/types"
 	"github.com/vdemeester/chisel/pkg/ui"
 )
@@ -79,10 +80,10 @@ func (e *Executor) Execute(ctx context.Context, pr *types.ResolvedPipelineRun) e
 	var pipelineErr error
 
 	// Expand matrix tasks before building DAG
-	tasks := expandAllMatrixTasks(pr.Tasks)
+	tasks := orchestrator.ExpandAllMatrixTasks(pr.Tasks)
 
 	// Build DAG and execute tasks in parallel where possible
-	dag := BuildDAG(tasks)
+	dag := orchestrator.BuildDAG(tasks)
 	pipelineErr = dag.ExecuteParallel(func(task *types.ResolvedTask) error {
 		return e.executeTask(ctx, task, pr)
 	})
@@ -120,7 +121,7 @@ func (e *Executor) createWorkspace(ctx context.Context, binding types.WorkspaceB
 
 func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr *types.ResolvedPipelineRun) error {
 	// Evaluate when conditions before executing
-	if !evaluateWhen(task, task.Params, e.results) {
+	if !orchestrator.EvaluateWhen(task, task.Params, e.results) {
 		e.log.Info("task skipped (when conditions not met)", "task", task.Name)
 		// Initialize empty results for skipped task so dependent tasks can reference them
 		e.results[task.Name] = make(map[string]string)
@@ -152,9 +153,9 @@ func (e *Executor) executeTask(ctx context.Context, task *types.ResolvedTask, pr
 	// Execute each step sequentially
 	for _, step := range task.Steps {
 		// Apply stepTemplate defaults
-		step = applyStepTemplate(step, task.StepTemplate)
+		step = orchestrator.ApplyStepTemplate(step, task.StepTemplate)
 		stepCopy := step // avoid closure capture issue
-		err := executeWithRetry(step.Retries, func() error {
+		err := orchestrator.ExecuteWithRetry(step.Retries, func() error {
 			return e.executeStep(ctx, &stepCopy, task, pr, sidecars)
 		})
 		if err != nil {
@@ -179,7 +180,7 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 
 	// Apply timeout if specified
 	if step.Timeout != "" {
-		timeout, err := parseTimeout(step.Timeout)
+		timeout, err := orchestrator.ParseTimeout(step.Timeout)
 		if err != nil {
 			return fmt.Errorf("invalid timeout: %w", err)
 		}
@@ -283,7 +284,7 @@ func (e *Executor) executeStep(ctx context.Context, step *types.Step, task *type
 				resultFiles[spec.Name] = content
 			}
 		}
-		captureResults(task.Results, resultFiles, e.results[task.Name])
+		orchestrator.CaptureResults(task.Results, resultFiles, e.results[task.Name])
 	}
 
 	return nil
@@ -383,7 +384,7 @@ func (e *Executor) mountVolumes(container *dagger.Container, step *types.Step, t
 	}
 
 	// Parse task volumes into a lookup map
-	volumes := parseVolumes(task.Volumes)
+	volumes := orchestrator.ParseVolumes(task.Volumes)
 
 	for _, mount := range step.VolumeMounts {
 		vol, ok := volumes[mount.Name]
@@ -392,19 +393,19 @@ func (e *Executor) mountVolumes(container *dagger.Container, step *types.Step, t
 		}
 
 		switch vol.Type {
-		case VolumeTypeEmptyDir:
+		case orchestrator.VolumeTypeEmptyDir:
 			// EmptyDir is just an empty directory - use a cache volume for persistence within the run
 			cache := e.client.CacheVolume(fmt.Sprintf("emptydir-%s-%s", task.Name, mount.Name))
 			container = container.WithMountedCache(mount.MountPath, cache)
 
-		case VolumeTypeConfigMap:
+		case orchestrator.VolumeTypeConfigMap:
 			// ConfigMap - in local execution, we'd need to read from a local file
 			// For now, create an empty directory as placeholder
 			// TODO: Support reading configmaps from local files or environment
 			dir := e.client.Directory()
 			container = container.WithDirectory(mount.MountPath, dir)
 
-		case VolumeTypeSecret:
+		case orchestrator.VolumeTypeSecret:
 			// Secret - in local execution, we'd need to read from a local file
 			// For now, create an empty directory as placeholder
 			// TODO: Support reading secrets from local files or environment

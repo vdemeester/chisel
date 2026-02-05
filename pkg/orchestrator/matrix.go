@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"fmt"
@@ -75,8 +75,8 @@ func expandMatrixTask(task types.ResolvedTask) []types.ResolvedTask {
 	return expanded
 }
 
-// expandAllMatrixTasks expands all tasks with matrices in a slice.
-func expandAllMatrixTasks(tasks []types.ResolvedTask) []types.ResolvedTask {
+// ExpandAllMatrixTasks expands all tasks with matrices in a slice.
+func ExpandAllMatrixTasks(tasks []types.ResolvedTask) []types.ResolvedTask {
 	var expanded []types.ResolvedTask
 	for _, task := range tasks {
 		expanded = append(expanded, expandMatrixTask(task)...)

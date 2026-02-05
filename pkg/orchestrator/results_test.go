@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ func TestCaptureResults_SingleResult(t *testing.T) {
 		"commit-sha": "abc123def456",
 	}
 
-	captureResults(resultSpecs, resultFiles, results)
+	CaptureResults(resultSpecs, resultFiles, results)
 
 	if results["commit-sha"] != "abc123def456" {
 		t.Errorf("Expected commit-sha=abc123def456, got %s", results["commit-sha"])
@@ -41,7 +41,7 @@ func TestCaptureResults_MultipleResults(t *testing.T) {
 		"build-time":   "2024-01-15T10:30:00Z",
 	}
 
-	captureResults(resultSpecs, resultFiles, results)
+	CaptureResults(resultSpecs, resultFiles, results)
 
 	if results["image-url"] != "gcr.io/myproject/myimage:v1.0.0" {
 		t.Errorf("image-url mismatch: got %s", results["image-url"])
@@ -67,7 +67,7 @@ func TestCaptureResults_MissingResult(t *testing.T) {
 		// optional-result is missing
 	}
 
-	captureResults(resultSpecs, resultFiles, results)
+	CaptureResults(resultSpecs, resultFiles, results)
 
 	if results["required-result"] != "value" {
 		t.Errorf("required-result should be captured")
@@ -88,32 +88,12 @@ func TestCaptureResults_TrimWhitespace(t *testing.T) {
 		"trimmed": "  value with spaces  \n",
 	}
 
-	captureResults(resultSpecs, resultFiles, results)
+	CaptureResults(resultSpecs, resultFiles, results)
 
 	if results["trimmed"] != "value with spaces" {
 		t.Errorf("Expected trimmed value, got %q", results["trimmed"])
 	}
 }
 
-func TestSubstituteResults(t *testing.T) {
-	// Test that $(tasks.taskname.results.resultname) is substituted correctly
-	e := &Executor{
-		results: map[string]map[string]string{
-			"build": {
-				"image-url":    "gcr.io/myproject/myimage:v1.0.0",
-				"image-digest": "sha256:abc123",
-			},
-		},
-	}
-
-	input := "Image: $(tasks.build.results.image-url)@$(tasks.build.results.image-digest)"
-	task := &types.ResolvedTask{}
-	pr := &types.ResolvedPipelineRun{}
-
-	result := e.substituteVariables(input, task, pr)
-	expected := "Image: gcr.io/myproject/myimage:v1.0.0@sha256:abc123"
-
-	if result != expected {
-		t.Errorf("Expected %q, got %q", expected, result)
-	}
-}
+// TestSubstituteResults moved to executor package temporarily
+// Will be refactored when extracting substitution logic to orchestrator

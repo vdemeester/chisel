@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"testing"
@@ -20,24 +20,24 @@ func TestParseTimeout_Valid(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
-			got, err := parseTimeout(tc.input)
+			got, err := ParseTimeout(tc.input)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if got != tc.expected {
-				t.Errorf("parseTimeout(%q) = %v, want %v", tc.input, got, tc.expected)
+				t.Errorf("ParseTimeout(%q) = %v, want %v", tc.input, got, tc.expected)
 			}
 		})
 	}
 }
 
 func TestParseTimeout_Empty(t *testing.T) {
-	got, err := parseTimeout("")
+	got, err := ParseTimeout("")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got != 0 {
-		t.Errorf("parseTimeout(\"\") = %v, want 0", got)
+		t.Errorf("ParseTimeout(\"\") = %v, want 0", got)
 	}
 }
 
@@ -51,9 +51,9 @@ func TestParseTimeout_Invalid(t *testing.T) {
 
 	for _, input := range tests {
 		t.Run(input, func(t *testing.T) {
-			_, err := parseTimeout(input)
+			_, err := ParseTimeout(input)
 			if err == nil {
-				t.Errorf("parseTimeout(%q) expected error, got nil", input)
+				t.Errorf("ParseTimeout(%q) expected error, got nil", input)
 			}
 		})
 	}
@@ -90,12 +90,12 @@ func TestParseTimeout_TektonFormat(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {
-			got, err := parseTimeout(tc.input)
+			got, err := ParseTimeout(tc.input)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if got != tc.expected {
-				t.Errorf("parseTimeout(%q) = %v, want %v", tc.input, got, tc.expected)
+				t.Errorf("ParseTimeout(%q) = %v, want %v", tc.input, got, tc.expected)
 			}
 		})
 	}
