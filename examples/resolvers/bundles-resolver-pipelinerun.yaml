@@ -1,0 +1,50 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: bundles-resolver-demo
+spec:
+  pipelineSpec:
+    tasks:
+    - name: clone-from-bundle
+      taskRef:
+        resolver: bundles
+        params:
+        - name: bundle
+          value: gcr.io/tekton-releases/catalog/upstream/git-clone:0.9
+        - name: name
+          value: git-clone
+        - name: kind
+          value: task
+      params:
+      - name: url
+        value: https://github.com/tektoncd/pipeline
+      - name: revision
+        value: main
+      workspaces:
+      - name: output
+        workspace: source
+
+    - name: build-from-bundle
+      taskRef:
+        resolver: bundles
+        params:
+        - name: bundle
+          value: gcr.io/tekton-releases/catalog/upstream/buildah:0.6
+        - name: name
+          value: buildah
+        - name: kind
+          value: task
+      params:
+      - name: IMAGE
+        value: localhost/myimage:latest
+      - name: DOCKERFILE
+        value: ./Dockerfile
+      workspaces:
+      - name: source
+        workspace: source
+      runAfter:
+      - clone-from-bundle
+
+  workspaces:
+  - name: source
+    emptyDir: {}

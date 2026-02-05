@@ -253,11 +253,107 @@ GET https://artifacthub.io/api/v1/packages/{catalog}/{name}/{version}
 
 Tasks are extracted from the `data.task` field in the JSON response.
 
-## Future Resolvers
+## Bundles Resolver (OCI Artifacts)
 
-The following resolvers are planned:
+The Bundles resolver fetches tasks from OCI registries as Tekton Bundles. This is the most production-ready approach for versioned task distribution.
 
-- **Bundles Resolver**: Pull tasks from OCI registries as Tekton Bundles
+### Example: Using Tekton Catalog Bundles
+
+```yaml
+taskRef:
+  resolver: bundles
+  params:
+  - name: bundle
+    value: gcr.io/tekton-releases/catalog/upstream/git-clone:0.9
+  - name: name
+    value: git-clone
+  - name: kind
+    value: task
+```
+
+### Run the example:
+
+```bash
+chisel run examples/resolvers/bundles-resolver-pipelinerun.yaml
+```
+
+This example:
+1. Fetches the `git-clone` task from Tekton Catalog via OCI bundle
+2. Fetches the `buildah` task from Tekton Catalog
+3. Demonstrates bundle-based task distribution
+
+### Bundles Resolver Parameters
+
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `bundle` | Yes | - | OCI image reference (registry/image:tag or registry/image@digest) |
+| `name` | Yes | - | Task name to extract from bundle |
+| `kind` | No | `task` | Resource kind (`task` or `pipeline`) |
+
+### Features
+
+- **OCI Registry Support**: Works with any OCI-compliant registry (Docker Hub, GHCR, GCR, ECR, ACR)
+- **Authentication**: Uses `~/.docker/config.json` for registry credentials
+- **Content Addressing**: Supports both tags and SHA256 digests for immutable references
+- **Caching**: Bundles are cached by reference to avoid redundant pulls
+
+### Use Cases
+
+1. **Tekton Catalog Bundles**: Use official Tekton catalog tasks
+   ```yaml
+   taskRef:
+     resolver: bundles
+     params:
+     - name: bundle
+       value: gcr.io/tekton-releases/catalog/upstream/kaniko:0.6
+     - name: name
+       value: kaniko
+   ```
+
+2. **Private Registry**: Use your organization's private bundles
+   ```yaml
+   taskRef:
+     resolver: bundles
+     params:
+     - name: bundle
+       value: ghcr.io/myorg/tekton-tasks/security-scan:v1.2.0
+     - name: name
+       value: security-scan
+   ```
+
+3. **Immutable References**: Pin to specific digests for reproducibility
+   ```yaml
+   taskRef:
+     resolver: bundles
+     params:
+     - name: bundle
+       value: gcr.io/tekton-releases/catalog/upstream/git-clone@sha256:abc123...
+     - name: name
+       value: git-clone
+   ```
+
+### Authentication
+
+The Bundles resolver uses the standard Docker authentication:
+
+1. **Default**: Reads from `~/.docker/config.json`
+2. **Login**: Use `docker login registry.io` to authenticate
+3. **Environment**: Supports standard Docker credential helpers
+
+For private registries:
+```bash
+# Docker Hub
+docker login
+
+# GHCR (GitHub Container Registry)
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+
+# GCR (Google Container Registry)
+gcloud auth configure-docker
+
+# ECR (AWS Container Registry)
+aws ecr get-login-password | docker login --username AWS --password-stdin $ECR_REGISTRY
+```
 
 ## Combining Local and Remote Tasks
 
