@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"errors"
@@ -79,7 +79,7 @@ func TestExecuteWithRetry_NoRetries(t *testing.T) {
 		return errors.New("always fails")
 	}
 
-	err := executeWithRetry(0, fn)
+	err := ExecuteWithRetry(0, fn)
 	if err == nil {
 		t.Error("expected error, got nil")
 	}
@@ -95,7 +95,7 @@ func TestExecuteWithRetry_Success(t *testing.T) {
 		return nil
 	}
 
-	err := executeWithRetry(3, fn)
+	err := ExecuteWithRetry(3, fn)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestExecuteWithRetry_SuccessAfterRetries(t *testing.T) {
 		return nil
 	}
 
-	err := executeWithRetry(5, fn)
+	err := ExecuteWithRetry(5, fn)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestExecuteWithRetry_ExhaustedRetries(t *testing.T) {
 		return errors.New("always fails")
 	}
 
-	err := executeWithRetry(2, fn)
+	err := ExecuteWithRetry(2, fn)
 	if err == nil {
 		t.Error("expected error, got nil")
 	}

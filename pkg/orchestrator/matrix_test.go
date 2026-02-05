@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"testing"
@@ -230,7 +230,7 @@ func TestExpandAllMatrixTasks(t *testing.T) {
 		},
 	}
 
-	expanded := expandAllMatrixTasks(tasks)
+	expanded := ExpandAllMatrixTasks(tasks)
 
 	// Expected: 1 + 2 + 1 = 4 tasks
 	if len(expanded) != 4 {

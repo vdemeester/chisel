@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"testing"
@@ -13,9 +13,9 @@ func TestEvaluateWhen_Empty(t *testing.T) {
 		When: nil,
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if !result {
-		t.Error("evaluateWhen with no expressions should return true")
+		t.Error("EvaluateWhen with no expressions should return true")
 	}
 }
 
@@ -31,9 +31,9 @@ func TestEvaluateWhen_InOperator_Match(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if !result {
-		t.Error("evaluateWhen should return true when input is in values")
+		t.Error("EvaluateWhen should return true when input is in values")
 	}
 }
 
@@ -49,9 +49,9 @@ func TestEvaluateWhen_InOperator_NoMatch(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if result {
-		t.Error("evaluateWhen should return false when input is not in values")
+		t.Error("EvaluateWhen should return false when input is not in values")
 	}
 }
 
@@ -67,9 +67,9 @@ func TestEvaluateWhen_NotInOperator_Match(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if !result {
-		t.Error("evaluateWhen should return true when input is not in values (notin)")
+		t.Error("EvaluateWhen should return true when input is not in values (notin)")
 	}
 }
 
@@ -85,9 +85,9 @@ func TestEvaluateWhen_NotInOperator_NoMatch(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if result {
-		t.Error("evaluateWhen should return false when input is in values (notin)")
+		t.Error("EvaluateWhen should return false when input is in values (notin)")
 	}
 }
 
@@ -108,9 +108,9 @@ func TestEvaluateWhen_MultipleExpressions_AllTrue(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if !result {
-		t.Error("evaluateWhen should return true when all expressions are true")
+		t.Error("EvaluateWhen should return true when all expressions are true")
 	}
 }
 
@@ -131,9 +131,9 @@ func TestEvaluateWhen_MultipleExpressions_OneFalse(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if result {
-		t.Error("evaluateWhen should return false when any expression is false")
+		t.Error("EvaluateWhen should return false when any expression is false")
 	}
 }
 
@@ -152,9 +152,9 @@ func TestEvaluateWhen_WithParamSubstitution(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, task.Params, nil)
+	result := EvaluateWhen(task, task.Params, nil)
 	if !result {
-		t.Error("evaluateWhen should substitute params and return true")
+		t.Error("EvaluateWhen should substitute params and return true")
 	}
 }
 
@@ -174,9 +174,9 @@ func TestEvaluateWhen_WithResultSubstitution(t *testing.T) {
 		"test": {"status": "passed"},
 	}
 
-	result := evaluateWhen(task, nil, results)
+	result := EvaluateWhen(task, nil, results)
 	if !result {
-		t.Error("evaluateWhen should substitute task results and return true")
+		t.Error("EvaluateWhen should substitute task results and return true")
 	}
 }
 
@@ -193,9 +193,9 @@ func TestEvaluateWhen_EmptyInput(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if result {
-		t.Error("evaluateWhen should return false when empty input doesn't match values")
+		t.Error("EvaluateWhen should return false when empty input doesn't match values")
 	}
 }
 
@@ -212,8 +212,8 @@ func TestEvaluateWhen_EmptyValues(t *testing.T) {
 		},
 	}
 
-	result := evaluateWhen(task, nil, nil)
+	result := EvaluateWhen(task, nil, nil)
 	if result {
-		t.Error("evaluateWhen should return false when values is empty")
+		t.Error("EvaluateWhen should return false when values is empty")
 	}
 }

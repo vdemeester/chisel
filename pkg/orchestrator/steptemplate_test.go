@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ func TestApplyStepTemplate_Empty(t *testing.T) {
 		Image: "alpine:latest",
 	}
 
-	result := applyStepTemplate(step, nil)
+	result := ApplyStepTemplate(step, nil)
 
 	if result.Image != "alpine:latest" {
 		t.Errorf("Image = %q, want %q", result.Image, "alpine:latest")
@@ -30,7 +30,7 @@ func TestApplyStepTemplate_ImageDefault(t *testing.T) {
 		Image: "golang:1.21",
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if result.Image != "golang:1.21" {
 		t.Errorf("Image = %q, want %q", result.Image, "golang:1.21")
@@ -47,7 +47,7 @@ func TestApplyStepTemplate_ImageOverride(t *testing.T) {
 		Image: "golang:1.21",
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if result.Image != "alpine:latest" {
 		t.Errorf("Image = %q, want %q", result.Image, "alpine:latest")
@@ -68,7 +68,7 @@ func TestApplyStepTemplate_EnvMerge(t *testing.T) {
 		},
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if result.Env["TEMPLATE_VAR"] != "template_value" {
 		t.Errorf("TEMPLATE_VAR = %q, want %q", result.Env["TEMPLATE_VAR"], "template_value")
@@ -89,7 +89,7 @@ func TestApplyStepTemplate_EnvOverride(t *testing.T) {
 		Env: map[string]string{"SHARED_VAR": "from_template"},
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if result.Env["SHARED_VAR"] != "from_step" {
 		t.Errorf("SHARED_VAR = %q, want %q", result.Env["SHARED_VAR"], "from_step")
@@ -105,7 +105,7 @@ func TestApplyStepTemplate_WorkingDirDefault(t *testing.T) {
 		WorkingDir: "/workspace/source",
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if result.WorkingDir != "/workspace/source" {
 		t.Errorf("WorkingDir = %q, want %q", result.WorkingDir, "/workspace/source")
@@ -122,7 +122,7 @@ func TestApplyStepTemplate_WorkingDirOverride(t *testing.T) {
 		WorkingDir: "/workspace/source",
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if result.WorkingDir != "/custom/dir" {
 		t.Errorf("WorkingDir = %q, want %q", result.WorkingDir, "/custom/dir")
@@ -144,7 +144,7 @@ func TestApplyStepTemplate_VolumeMountsMerge(t *testing.T) {
 		},
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if len(result.VolumeMounts) != 2 {
 		t.Fatalf("VolumeMounts count = %d, want 2", len(result.VolumeMounts))
@@ -169,7 +169,7 @@ func TestApplyStepTemplate_CommandDefault(t *testing.T) {
 		Command: []string{"/bin/custom"},
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if len(result.Command) != 1 || result.Command[0] != "/bin/custom" {
 		t.Errorf("Command = %v, want [/bin/custom]", result.Command)
@@ -186,7 +186,7 @@ func TestApplyStepTemplate_CommandOverride(t *testing.T) {
 		Command: []string{"/bin/template-cmd"},
 	}
 
-	result := applyStepTemplate(step, template)
+	result := ApplyStepTemplate(step, template)
 
 	if len(result.Command) != 1 || result.Command[0] != "/bin/step-cmd" {
 		t.Errorf("Command = %v, want [/bin/step-cmd]", result.Command)

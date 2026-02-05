@@ -1,4 +1,4 @@
-package executor
+package orchestrator
 
 // RetryConfig tracks retry state for step execution.
 type RetryConfig struct {
@@ -32,9 +32,9 @@ func (r *RetryConfig) CurrentAttempt() int {
 	return r.attempts
 }
 
-// executeWithRetry executes a function with retry support.
+// ExecuteWithRetry executes a function with retry support.
 // Returns nil on success, or the last error if all retries are exhausted.
-func executeWithRetry(maxRetries int, fn func() error) error {
+func ExecuteWithRetry(maxRetries int, fn func() error) error {
 	var lastErr error
 
 	// 1 initial attempt + maxRetries retries
