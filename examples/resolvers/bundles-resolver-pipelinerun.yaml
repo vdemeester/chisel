@@ -1,3 +1,14 @@
+# NOTE: This example demonstrates the Bundles resolver syntax.
+# To test bundles resolver, you need to:
+# 1. Use your own OCI registry with Tekton bundles, OR
+# 2. Use the working example below with Git resolver
+#
+# To create and push a Tekton bundle:
+#   tkn bundle push your-registry.io/tasks/git-clone:0.9 -f task.yaml
+#   docker login your-registry.io  # authenticate first
+#
+# Then update the bundle references below to point to your registry.
+
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
@@ -5,16 +16,18 @@ metadata:
 spec:
   pipelineSpec:
     tasks:
-    - name: clone-from-bundle
+    # Example using Git resolver (working alternative)
+    # Replace with bundles resolver when you have bundles in your registry
+    - name: clone-task
       taskRef:
-        resolver: bundles
+        resolver: git
         params:
-        - name: bundle
-          value: gcr.io/tekton-releases/catalog/upstream/git-clone:0.9
-        - name: name
-          value: git-clone
-        - name: kind
-          value: task
+        - name: url
+          value: https://github.com/tektoncd/catalog.git
+        - name: revision
+          value: main
+        - name: pathInRepo
+          value: task/git-clone/0.9/git-clone.yaml
       params:
       - name: url
         value: https://github.com/tektoncd/pipeline
@@ -24,26 +37,40 @@ spec:
       - name: output
         workspace: source
 
-    - name: build-from-bundle
-      taskRef:
-        resolver: bundles
-        params:
-        - name: bundle
-          value: gcr.io/tekton-releases/catalog/upstream/buildah:0.6
-        - name: name
-          value: buildah
-        - name: kind
-          value: task
-      params:
-      - name: IMAGE
-        value: localhost/myimage:latest
-      - name: DOCKERFILE
-        value: ./Dockerfile
+    # Bundles resolver syntax (commented out - replace with your registry):
+    # - name: clone-from-bundle
+    #   taskRef:
+    #     resolver: bundles
+    #     params:
+    #     - name: bundle
+    #       value: your-registry.io/tasks/git-clone:0.9
+    #     - name: name
+    #       value: git-clone
+    #     - name: kind
+    #       value: task
+    #   params:
+    #   - name: url
+    #     value: https://github.com/tektoncd/pipeline
+    #   - name: revision
+    #     value: main
+    #   workspaces:
+    #   - name: output
+    #     workspace: source
+
+    - name: list-files
+      taskSpec:
+        workspaces:
+        - name: source
+        steps:
+        - name: list
+          image: alpine
+          script: |
+            ls -la $(workspaces.source.path)
       workspaces:
       - name: source
         workspace: source
       runAfter:
-      - clone-from-bundle
+      - clone-task
 
   workspaces:
   - name: source

@@ -257,14 +257,14 @@ Tasks are extracted from the `data.task` field in the JSON response.
 
 The Bundles resolver fetches tasks from OCI registries as Tekton Bundles. This is the most production-ready approach for versioned task distribution.
 
-### Example: Using Tekton Catalog Bundles
+### Example: Using Bundles
 
 ```yaml
 taskRef:
   resolver: bundles
   params:
   - name: bundle
-    value: gcr.io/tekton-releases/catalog/upstream/git-clone:0.9
+    value: your-registry.io/tasks/git-clone:0.9
   - name: name
     value: git-clone
   - name: kind
@@ -273,14 +273,26 @@ taskRef:
 
 ### Run the example:
 
+The provided example uses Git resolver as a working alternative since public Tekton bundles require authentication. To test bundles resolver:
+
+**Option 1: Create a local test bundle**
+```bash
+# Use the helper script
+./examples/resolvers/create-test-bundle.sh localhost:5000 v1
+
+# Or manually with tkn CLI
+tkn bundle push localhost:5000/tasks/hello:v1 -f your-task.yaml
+```
+
+**Option 2: Use the Git resolver example (works immediately)**
 ```bash
 chisel run examples/resolvers/bundles-resolver-pipelinerun.yaml
 ```
 
-This example:
-1. Fetches the `git-clone` task from Tekton Catalog via OCI bundle
-2. Fetches the `buildah` task from Tekton Catalog
-3. Demonstrates bundle-based task distribution
+This example demonstrates:
+1. Git resolver for immediate testing (no auth required)
+2. Commented bundles resolver syntax for reference
+3. How to structure bundle-based pipelines
 
 ### Bundles Resolver Parameters
 
