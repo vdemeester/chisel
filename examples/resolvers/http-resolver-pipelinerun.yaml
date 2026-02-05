@@ -1,0 +1,42 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: http-resolver-demo
+spec:
+  pipelineSpec:
+    tasks:
+    - name: git-clone
+      taskRef:
+        resolver: http
+        params:
+        - name: url
+          value: https://raw.githubusercontent.com/tektoncd/catalog/main/task/git-clone/0.9/git-clone.yaml
+      params:
+      - name: url
+        value: https://github.com/tektoncd/pipeline
+      - name: revision
+        value: main
+      workspaces:
+      - name: output
+        workspace: source
+
+    - name: list-files
+      taskSpec:
+        workspaces:
+        - name: source
+        steps:
+        - name: ls
+          image: alpine
+          workingDir: $(workspaces.source.path)
+          script: |
+            echo "Files in cloned repository:"
+            ls -la
+      workspaces:
+      - name: source
+        workspace: source
+      runAfter:
+      - git-clone
+
+  workspaces:
+  - name: source
+    emptyDir: {}

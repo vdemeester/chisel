@@ -115,10 +115,8 @@ type TektonPipelineSpec struct {
 
 // TektonPipelineTask is a task reference within a Pipeline
 type TektonPipelineTask struct {
-	Name    string `yaml:"name"`
-	TaskRef *struct {
-		Name string `yaml:"name"`
-	} `yaml:"taskRef"`
+	Name       string                 `yaml:"name"`
+	TaskRef    *TektonTaskRef         `yaml:"taskRef"`
 	TaskSpec   *TektonTaskSpec        `yaml:"taskSpec"`
 	Params     []TektonParam          `yaml:"params"`
 	RunAfter   []string               `yaml:"runAfter"`
@@ -128,6 +126,19 @@ type TektonPipelineTask struct {
 		Name      string `yaml:"name"`
 		Workspace string `yaml:"workspace"`
 	} `yaml:"workspaces"`
+}
+
+// TektonTaskRef represents a reference to a task (local or remote)
+type TektonTaskRef struct {
+	// Name is the task name for local filesystem lookup
+	Name string `yaml:"name"`
+
+	// Resolver specifies how to resolve the task ("http", "git", "bundles", "hub")
+	// If empty, defaults to local filesystem lookup
+	Resolver string `yaml:"resolver"`
+
+	// Params are resolver-specific parameters
+	Params []TektonParam `yaml:"params"`
 }
 
 // TektonMatrix defines matrix parameters for task expansion
@@ -510,7 +521,17 @@ func (p *Parser) resolveTask(pt TektonPipelineTask, baseDir string, pipelinePara
 		taskSpec = pt.TaskSpec
 		resolved.TaskName = pt.Name + "-inline"
 	} else if pt.TaskRef != nil {
-		task, err := p.loadTask(pt.TaskRef.Name, baseDir)
+		var task *TektonTask
+		var err error
+
+		// Check if a resolver is specified
+		if pt.TaskRef.Resolver != "" {
+			task, err = p.resolveTaskWithResolver(pt.TaskRef)
+		} else {
+			// Fall back to local filesystem lookup
+			task, err = p.loadTask(pt.TaskRef.Name, baseDir)
+		}
+
 		if err != nil {
 			return nil, err
 		}
