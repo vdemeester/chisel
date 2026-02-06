@@ -21,6 +21,8 @@ type Options struct {
 	Debug bool
 	// Logger for informational output
 	Logger ui.Logger
+	// Params are CLI-provided parameter overrides (for Pipeline/Task, not PipelineRun)
+	Params map[string]types.ParamValue
 }
 
 // Parser parses Tekton YAML files
@@ -371,6 +373,11 @@ func (p *Parser) parsePipelineAsPipelineRun(data []byte, baseDir string) (*types
 		}
 	}
 
+	// Override with CLI params
+	for name, value := range p.opts.Params {
+		resolved.Params[name] = value
+	}
+
 	// Create default workspace bindings
 	for _, ws := range pipeline.Spec.Workspaces {
 		resolved.Workspaces[ws.Name] = types.WorkspaceBinding{
@@ -418,6 +425,11 @@ func (p *Parser) parseTaskAsPipelineRun(data []byte, baseDir string) (*types.Res
 		if param.Default != nil {
 			resolved.Params[param.Name] = parseParamValue(param.Default)
 		}
+	}
+
+	// Override with CLI params
+	for name, value := range p.opts.Params {
+		resolved.Params[name] = value
 	}
 
 	// Create default workspace bindings
@@ -798,4 +810,47 @@ func parseParamValue(value interface{}) types.ParamValue {
 			StringVal: fmt.Sprintf("%v", value),
 		}
 	}
+}
+
+// ParseParamString parses a CLI param string in the format:
+//   - String: key=value
+//   - Array: key=value1,value2,value3
+//   - Object: key="key1:value1, key2:value2"
+//
+// Returns the parameter name and value.
+func ParseParamString(s string) (string, types.ParamValue, error) {
+	parts := strings.SplitN(s, "=", 2)
+	if len(parts) != 2 {
+		return "", types.ParamValue{}, fmt.Errorf("invalid param format %q: expected key=value", s)
+	}
+
+	name := parts[0]
+	value := parts[1]
+
+	// Check for object format: starts and ends with quotes, contains colons
+	if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+		// Object format: key="key1:value1, key2:value2"
+		inner := strings.Trim(value, "\"")
+		obj := make(map[string]string)
+		for _, pair := range strings.Split(inner, ",") {
+			pair = strings.TrimSpace(pair)
+			if pair == "" {
+				continue
+			}
+			kv := strings.SplitN(pair, ":", 2)
+			if len(kv) == 2 {
+				obj[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+			}
+		}
+		return name, types.ParamValue{Type: types.ParamTypeObject, ObjectVal: obj}, nil
+	}
+
+	// Check for array format: contains commas
+	if strings.Contains(value, ",") {
+		arr := strings.Split(value, ",")
+		return name, types.ParamValue{Type: types.ParamTypeArray, ArrayVal: arr}, nil
+	}
+
+	// Default to string
+	return name, types.ParamValue{Type: types.ParamTypeString, StringVal: value}, nil
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/vdemeester/chisel/pkg/backend/dagger"
 	"github.com/vdemeester/chisel/pkg/parser"
+	"github.com/vdemeester/chisel/pkg/types"
 	"github.com/vdemeester/chisel/pkg/ui"
 )
 
@@ -43,6 +44,7 @@ var (
 	dryRun     bool
 	outputMode string
 	workspaces []string
+	params     []string
 )
 
 func init() {
@@ -51,6 +53,7 @@ func init() {
 	runCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Parse and validate without executing")
 	runCmd.Flags().StringVarP(&outputMode, "output", "o", "", "Output mode: pretty, plain, json (default: auto-detect)")
 	runCmd.Flags().StringArrayVarP(&workspaces, "workspace", "w", nil, "Override workspace binding (format: name:path, can be repeated)")
+	runCmd.Flags().StringArrayVarP(&params, "param", "p", nil, "Parameter value (format: name=value, can be repeated)")
 }
 
 func runPipeline(cmd *cobra.Command, args []string) error {
@@ -84,11 +87,18 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 
 	pipelineRunPath := args[0]
 
+	// Parse CLI params
+	cliParams, err := parseParams(params)
+	if err != nil {
+		return fail(err)
+	}
+
 	// Parse the PipelineRun and resolve references
 	p := parser.New(parser.Options{
 		TasksDir: tasksDir,
 		Debug:    debug,
 		Logger:   log,
+		Params:   cliParams,
 	})
 
 	resolved, err := p.ParsePipelineRun(pipelineRunPath)
@@ -141,4 +151,17 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// parseParams parses CLI param strings into a map of ParamValues
+func parseParams(params []string) (map[string]types.ParamValue, error) {
+	result := make(map[string]types.ParamValue)
+	for _, p := range params {
+		name, value, err := parser.ParseParamString(p)
+		if err != nil {
+			return nil, err
+		}
+		result[name] = value
+	}
+	return result, nil
 }
