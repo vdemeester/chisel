@@ -178,7 +178,7 @@ func TestContainerSpecValidation(t *testing.T) {
 		{
 			name:    "empty spec",
 			spec:    ContainerSpec{},
-			wantErr: true,
+			wantErr: true, // Image is required
 		},
 		{
 			name: "no image",
@@ -188,7 +188,14 @@ func TestContainerSpecValidation(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "valid minimal",
+			name: "image only (no command)",
+			spec: ContainerSpec{
+				Image: "alpine",
+			},
+			wantErr: false, // Command is optional, uses image default
+		},
+		{
+			name: "valid with command",
 			spec: ContainerSpec{
 				Image:   "alpine",
 				Command: []string{"echo"},
