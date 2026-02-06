@@ -297,11 +297,17 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 		}
 
 		stepStart := time.Now()
-		log.StepStart(stepName, step.Image)
+
+		// Substitute variables in image first (for logging)
+		image := substituteVariables(step.Image, &task, pr, taskResults)
+		log.StepStart(stepName, image)
 
 		// Build container spec for the step
 		spec := buildStepContainerSpec(step, &task, pr, taskResults, volumeDirs, resultsDir)
 		spec.Name = fmt.Sprintf("%s-step-%s", task.Name, stepName)
+
+		// Use substituted image in the spec
+		spec.Image = image
 
 		// Run step in pod
 		result, err := podman.RunContainerInPod(ctx, podID, spec)
