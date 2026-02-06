@@ -158,8 +158,8 @@ Transform chisel into a monorepo supporting two backends:
 - [x] Documentation
   - [x] Update root `README.md` (overview, when to use each tool, installation)
   - [x] Create `cmd/mallet/README.md` (Podman setup, troubleshooting)
-  - [ ] Create `docs/ARCHITECTURE.md` (backend abstraction design)
-  - [ ] Create `docs/MIGRATION.md` (Chisel → Mallet guide)
+  - [x] Create `docs/ARCHITECTURE.md` (backend abstraction design)
+  - [x] ~~Create `docs/MIGRATION.md`~~ (skipped - README covers tool selection)
 - [ ] CI/CD updates
   - [ ] Update `.github/workflows/test.yaml` (build/test both)
   - [ ] Update `.github/workflows/release.yaml` (release both)
