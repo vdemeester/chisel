@@ -5,18 +5,18 @@ package podman
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/vdemeester/chisel/pkg/backend"
 )
 
-// ErrNotImplemented is returned by all methods until the Podman backend is implemented.
+// ErrNotImplemented is returned by methods not yet implemented.
 var ErrNotImplemented = errors.New("podman backend not yet implemented")
 
 // PodmanBackend implements the backend.Backend interface using Podman.
 type PodmanBackend struct {
-	// Fields will be added in Phase 3 when implementing Podman API bindings.
-	// Placeholder to satisfy the linter.
-	_ struct{}
+	client *Client
 }
 
 // NewPodmanBackend creates a new Podman backend instance.
@@ -24,10 +24,100 @@ func NewPodmanBackend() *PodmanBackend {
 	return &PodmanBackend{}
 }
 
+// ensureClient initializes the Podman client if not already done.
+func (b *PodmanBackend) ensureClient() error {
+	if b.client != nil {
+		return nil
+	}
+	client, err := NewClient()
+	if err != nil {
+		return err
+	}
+	b.client = client
+	return nil
+}
+
 // ExecuteStep runs a single step in a Podman container.
-// TODO: Implement using Podman API bindings.
 func (b *PodmanBackend) ExecuteStep(ctx context.Context, req *backend.StepRequest) (*backend.StepResult, error) {
-	return nil, ErrNotImplemented
+	if req == nil {
+		return nil, errors.New("step request is nil")
+	}
+
+	if err := b.ensureClient(); err != nil {
+		return nil, fmt.Errorf("failed to initialize podman client: %w", err)
+	}
+
+	// Build the container spec from the step request
+	spec := ContainerSpec{
+		Image:   req.Image,
+		Timeout: req.Timeout,
+	}
+
+	// Build command - combine Command and Args
+	if len(req.Command) > 0 {
+		spec.Command = append(spec.Command, req.Command...)
+	}
+	if len(req.Args) > 0 {
+		spec.Command = append(spec.Command, req.Args...)
+	}
+
+	// If no command specified, try to use the step's script
+	if len(spec.Command) == 0 && req.Step != nil && req.Step.Script != "" {
+		// For scripts, we wrap in sh -c
+		spec.Command = []string{"sh", "-c", req.Step.Script}
+	}
+
+	// Fallback to echo if still no command
+	if len(spec.Command) == 0 {
+		spec.Command = []string{"echo", "no command specified"}
+	}
+
+	// Set environment variables
+	if len(req.Env) > 0 {
+		spec.Env = req.Env
+	}
+
+	// Set working directory
+	if req.WorkDir != "" {
+		spec.WorkDir = req.WorkDir
+	}
+
+	// Add workspace mounts
+	for name, ws := range req.Workspaces {
+		if ws.SourcePath != "" {
+			spec.Mounts = append(spec.Mounts, Mount{
+				Source: ws.SourcePath,
+				Target: ws.MountPath,
+			})
+		} else if ws.VolumeID != "" {
+			// Named volume - for now we treat it as a path
+			spec.Mounts = append(spec.Mounts, Mount{
+				Source: ws.VolumeID,
+				Target: ws.MountPath,
+			})
+		}
+		_ = name // Silence unused warning
+	}
+
+	// Run the container
+	result, err := RunContainer(ctx, spec)
+	if err != nil {
+		// Check if it's a timeout
+		if strings.Contains(err.Error(), "timeout") {
+			return &backend.StepResult{
+				ExitCode: -1,
+				Error:    err,
+			}, nil
+		}
+		return nil, fmt.Errorf("container execution failed: %w", err)
+	}
+
+	return &backend.StepResult{
+		ExitCode: result.ExitCode,
+		Stdout:   result.Stdout,
+		Stderr:   result.Stderr,
+		Results:  make(map[string]string), // TODO: Capture results from /tekton/results/
+	}, nil
 }
 
 // StartSidecar starts a sidecar service container.
@@ -49,7 +139,9 @@ func (b *PodmanBackend) ReadResult(ctx context.Context, req *backend.ResultReque
 }
 
 // Cleanup releases all resources created by this backend.
-// TODO: Implement cleanup of containers, pods, and volumes.
 func (b *PodmanBackend) Cleanup(ctx context.Context) error {
-	return ErrNotImplemented
+	if b.client != nil {
+		return b.client.Close()
+	}
+	return nil
 }

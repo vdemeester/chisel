@@ -6,11 +6,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/vdemeester/chisel/pkg/backend"
 	"github.com/vdemeester/chisel/pkg/backend/podman"
 	"github.com/vdemeester/chisel/pkg/parser"
+	"github.com/vdemeester/chisel/pkg/types"
 	"github.com/vdemeester/chisel/pkg/ui"
 )
 
@@ -127,14 +130,86 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	}
 
 	// Execute via Podman backend
-	backend := podman.NewPodmanBackend()
+	be := podman.NewPodmanBackend()
+	defer be.Cleanup(ctx)
 
-	// For now, we'll just call ExecuteStep to trigger the "not implemented" error
-	// In the future, this will integrate with the orchestrator
-	_, err = backend.ExecuteStep(ctx, nil)
-	if err != nil {
-		return fail(fmt.Errorf("podman execution: %w", err))
+	pipelineStart := time.Now()
+	log.PipelineStart(resolved.Name)
+
+	// Execute each task sequentially
+	for _, task := range resolved.Tasks {
+		if err := executeTask(ctx, be, task, resolved, log); err != nil {
+			log.PipelineEnd(resolved.Name, time.Since(pipelineStart), err)
+			return fail(fmt.Errorf("task %s failed: %w", task.Name, err))
+		}
 	}
 
+	log.PipelineEnd(resolved.Name, time.Since(pipelineStart), nil)
+	return nil
+}
+
+// executeTask runs all steps in a task.
+func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTask, pr *types.ResolvedPipelineRun, log ui.Logger) error {
+	taskStart := time.Now()
+	log.TaskStart(task.Name)
+
+	for i, step := range task.Steps {
+		stepName := step.Name
+		if stepName == "" {
+			stepName = fmt.Sprintf("step-%d", i)
+		}
+
+		stepStart := time.Now()
+		log.StepStart(stepName, step.Image)
+
+		// Build the step request
+		req := &backend.StepRequest{
+			Step:    &step,
+			Image:   step.Image,
+			Command: step.Command,
+			Args:    step.Args,
+			Env:     step.Env,
+			WorkDir: step.WorkingDir,
+		}
+
+		// Convert workspace bindings
+		req.Workspaces = make(map[string]backend.WorkspaceMount)
+		for name, ws := range pr.Workspaces {
+			req.Workspaces[name] = backend.WorkspaceMount{
+				Name:       ws.Name,
+				MountPath:  "/workspace/" + name,
+				SourceType: string(ws.Type),
+				SourcePath: ws.Path,
+			}
+		}
+
+		// Execute the step
+		result, err := be.ExecuteStep(ctx, req)
+		if err != nil {
+			log.StepEnd(stepName, time.Since(stepStart), err)
+			log.TaskEnd(task.Name, time.Since(taskStart), err)
+			return fmt.Errorf("step %s failed: %w", stepName, err)
+		}
+
+		// Log output
+		if result.Stdout != "" {
+			log.StepOutput(stepName, result.Stdout)
+		}
+		if result.Stderr != "" {
+			log.Warn(fmt.Sprintf("Step %s stderr: %s", stepName, result.Stderr))
+		}
+
+		// Check exit code
+		if result.ExitCode != 0 {
+			err := fmt.Errorf("step exited with code %d", result.ExitCode)
+			log.StepEnd(stepName, time.Since(stepStart), err)
+			log.TaskEnd(task.Name, time.Since(taskStart), err)
+			return fmt.Errorf("step %s exited with code %d", stepName, result.ExitCode)
+		}
+
+		log.StepEnd(stepName, time.Since(stepStart), nil)
+	}
+
+	log.TaskEnd(task.Name, time.Since(taskStart), nil)
 	return nil
 }
