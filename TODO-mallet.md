@@ -83,20 +83,26 @@ Transform chisel into a monorepo supporting two backends:
 - [x] Integration tests with real Podman (skip when unavailable)
 - [x] **Verified:** Can execute single-step tasks, hello-pipelinerun works (~700ms)
 
-### Phase 4: Full Orchestration Integration ⏳
+### Phase 4: Full Orchestration Integration ✅
 **Timeline:** Week 5
-**Status:** Not started
-**Estimated LOC:** ~150 LOC
+**Status:** COMPLETE (PR #17, 2026-02-06)
+**Actual LOC:** ~270 LOC
 
-- [ ] Implement `pkg/backend/podman/results.go` (~100 LOC)
-  - [ ] Read files from `/tekton/results/` using `podman exec cat`
-  - [ ] Handle missing result files gracefully
-- [ ] Integration with orchestrator (~50 LOC changes)
-  - [ ] Update `cmd/mallet/run.go` to use full orchestrator
-  - [ ] Hook up scheduler for parallel task execution
-  - [ ] Integrate matrix expansion, when clauses, retry logic
-- [ ] Test multi-step tasks, pipelines, results, parallel execution, matrix builds
-- [ ] **Verify:** Full pipeline execution with result passing works
+- [x] Implement `pkg/backend/podman/results.go` (~50 LOC)
+  - [x] ReadResultFromPath and CollectResults helpers
+  - [x] Mount temp directory to /tekton/results
+  - [x] Collect results after container execution
+- [x] Integration with orchestrator (~165 LOC changes)
+  - [x] Use BuildDAG and ExecuteParallel for parallel execution
+  - [x] Expand matrix tasks before building DAG
+  - [x] Evaluate when conditions for conditional execution
+  - [x] Pass results between dependent tasks
+  - [x] Execute finally tasks after main pipeline
+- [x] Add parameter substitution (~60 LOC)
+  - [x] $(params.name) with string, array, object support
+  - [x] $(tasks.taskname.results.resultname) for result passing
+  - [x] $(workspaces.name.path) and $(context.*) variables
+- [x] **Verified:** Full pipeline execution with result passing works
 
 ### Phase 5: Sidecars & Advanced Features ⏳
 **Timeline:** Week 6
