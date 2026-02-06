@@ -196,7 +196,9 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// executeTask runs all steps in a task and returns task results.
+// executeTask runs all steps in a task using a pod for container isolation.
+// Similar to Tekton, each task runs in its own pod with shared network namespace.
+// Sidecars run alongside step containers and can be accessed by hostname.
 func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTask, pr *types.ResolvedPipelineRun, taskResults map[string]map[string]string, log ui.Logger) (map[string]string, error) {
 	taskStart := time.Now()
 	log.TaskStart(task.Name)
@@ -215,9 +217,76 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 		}
 	}
 
+	// Create a temp directory for Tekton results (shared across all steps)
+	resultsDir, err := os.MkdirTemp("", fmt.Sprintf("tekton-results-%s-*", task.Name))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create results directory: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(resultsDir) }()
+
+	// Build host aliases for sidecars (map sidecar names to 127.0.0.1)
+	hostAliases := make(map[string]string)
+	for _, sidecar := range task.Sidecars {
+		hostAliases[sidecar.Name] = "127.0.0.1"
+	}
+
+	// Create a unique pod name for this task
+	podName := fmt.Sprintf("mallet-%s-%d", task.Name, time.Now().UnixNano())
+
+	// Create pod with host aliases
+	podID, err := podman.CreatePodWithOptions(ctx, podName, podman.PodOptions{
+		HostAliases: hostAliases,
+	})
+	if err != nil {
+		log.TaskEnd(task.Name, time.Since(taskStart), err)
+		return nil, fmt.Errorf("failed to create pod: %w", err)
+	}
+
+	// Ensure pod cleanup
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = podman.RemovePod(cleanupCtx, podID, true)
+	}()
+
+	// Start pod
+	if err := podman.StartPod(ctx, podID); err != nil {
+		log.TaskEnd(task.Name, time.Since(taskStart), err)
+		return nil, fmt.Errorf("failed to start pod: %w", err)
+	}
+
+	// Start sidecars in the pod
+	var sidecarIDs []string
+	for _, sidecar := range task.Sidecars {
+		spec := podman.ContainerSpec{
+			Image:   sidecar.Image,
+			Command: sidecar.Command,
+			Env:     sidecar.Env,
+			Name:    fmt.Sprintf("%s-sidecar-%s", task.Name, sidecar.Name),
+		}
+
+		// Add args to command if present
+		if len(sidecar.Args) > 0 {
+			spec.Command = append(spec.Command, sidecar.Args...)
+		}
+
+		id, err := podman.CreateContainerInPod(ctx, podID, spec)
+		if err != nil {
+			log.TaskEnd(task.Name, time.Since(taskStart), err)
+			return nil, fmt.Errorf("failed to create sidecar %s: %w", sidecar.Name, err)
+		}
+		sidecarIDs = append(sidecarIDs, id)
+
+		if err := podman.StartContainer(ctx, id); err != nil {
+			log.TaskEnd(task.Name, time.Since(taskStart), err)
+			return nil, fmt.Errorf("failed to start sidecar %s: %w", sidecar.Name, err)
+		}
+	}
+
 	// Collect results from all steps
 	stepResults := make(map[string]string)
 
+	// Run steps sequentially in the pod
 	for i, originalStep := range task.Steps {
 		// Apply stepTemplate defaults
 		step := orchestrator.ApplyStepTemplate(originalStep, task.StepTemplate)
@@ -230,79 +299,12 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 		stepStart := time.Now()
 		log.StepStart(stepName, step.Image)
 
-		// Substitute variables in script
-		script := step.Script
-		if script != "" {
-			script = substituteVariables(script, &task, pr, taskResults)
-		}
+		// Build container spec for the step
+		spec := buildStepContainerSpec(step, &task, pr, taskResults, volumeDirs, resultsDir)
+		spec.Name = fmt.Sprintf("%s-step-%s", task.Name, stepName)
 
-		// Substitute variables in command
-		var command []string
-		for _, c := range step.Command {
-			command = append(command, substituteVariables(c, &task, pr, taskResults))
-		}
-
-		// Substitute variables in args
-		var args []string
-		for _, a := range step.Args {
-			args = append(args, substituteVariables(a, &task, pr, taskResults))
-		}
-
-		// Substitute variables in env values
-		env := make(map[string]string)
-		for k, v := range step.Env {
-			env[k] = substituteVariables(v, &task, pr, taskResults)
-		}
-
-		// Substitute variables in workingDir
-		workDir := step.WorkingDir
-		if workDir != "" {
-			workDir = substituteVariables(workDir, &task, pr, taskResults)
-		}
-
-		// Create a copy of step with substituted values
-		substitutedStep := step
-		substitutedStep.Script = script
-		substitutedStep.Command = command
-		substitutedStep.Args = args
-		substitutedStep.Env = env
-		substitutedStep.WorkingDir = workDir
-
-		// Build the step request
-		req := &backend.StepRequest{
-			Step:    &substitutedStep,
-			Image:   step.Image,
-			Command: command,
-			Args:    args,
-			Env:     env,
-			WorkDir: workDir,
-		}
-
-		// Convert workspace bindings
-		req.Workspaces = make(map[string]backend.WorkspaceMount)
-		for name, ws := range pr.Workspaces {
-			req.Workspaces[name] = backend.WorkspaceMount{
-				Name:       ws.Name,
-				MountPath:  "/workspace/" + name,
-				SourceType: string(ws.Type),
-				SourcePath: ws.Path,
-			}
-		}
-
-		// Add volume mounts from the step
-		for _, vm := range step.VolumeMounts {
-			if dir, ok := volumeDirs[vm.Name]; ok {
-				req.Workspaces["vol-"+vm.Name] = backend.WorkspaceMount{
-					Name:       vm.Name,
-					MountPath:  vm.MountPath,
-					SourceType: "emptyDir",
-					SourcePath: dir,
-				}
-			}
-		}
-
-		// Execute the step
-		result, err := be.ExecuteStep(ctx, req)
+		// Run step in pod
+		result, err := podman.RunContainerInPod(ctx, podID, spec)
 		if err != nil {
 			log.StepEnd(stepName, time.Since(stepStart), err)
 			log.TaskEnd(task.Name, time.Since(taskStart), err)
@@ -325,16 +327,106 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 			return nil, fmt.Errorf("step %s exited with code %d", stepName, result.ExitCode)
 		}
 
-		// Collect results from this step
-		for name, value := range result.Results {
+		// Collect results from the shared results directory
+		results, _ := podman.CollectResults(resultsDir)
+		for name, value := range results {
 			stepResults[name] = value
 		}
 
 		log.StepEnd(stepName, time.Since(stepStart), nil)
 	}
 
+	// Stop sidecars
+	for _, id := range sidecarIDs {
+		timeout := uint(5)
+		_ = podman.StopContainer(ctx, id, &timeout)
+	}
+
 	log.TaskEnd(task.Name, time.Since(taskStart), nil)
 	return stepResults, nil
+}
+
+// buildStepContainerSpec creates a ContainerSpec for a step with variable substitution.
+func buildStepContainerSpec(step types.Step, task *types.ResolvedTask, pr *types.ResolvedPipelineRun, taskResults map[string]map[string]string, volumeDirs map[string]string, resultsDir string) podman.ContainerSpec {
+	// Substitute variables in script
+	script := step.Script
+	if script != "" {
+		script = substituteVariables(script, task, pr, taskResults)
+	}
+
+	// Substitute variables in command
+	var command []string
+	for _, c := range step.Command {
+		command = append(command, substituteVariables(c, task, pr, taskResults))
+	}
+
+	// Substitute variables in args
+	var args []string
+	for _, a := range step.Args {
+		args = append(args, substituteVariables(a, task, pr, taskResults))
+	}
+
+	// Substitute variables in env values
+	env := make(map[string]string)
+	for k, v := range step.Env {
+		env[k] = substituteVariables(v, task, pr, taskResults)
+	}
+
+	// Substitute variables in workingDir
+	workDir := step.WorkingDir
+	if workDir != "" {
+		workDir = substituteVariables(workDir, task, pr, taskResults)
+	}
+
+	// Build the container spec
+	spec := podman.ContainerSpec{
+		Image:   step.Image,
+		Env:     env,
+		WorkDir: workDir,
+	}
+
+	// Build command - combine Command and Args
+	if len(command) > 0 {
+		spec.Command = append(spec.Command, command...)
+	}
+	if len(args) > 0 {
+		spec.Command = append(spec.Command, args...)
+	}
+
+	// If no command specified, use the script
+	if len(spec.Command) == 0 && script != "" {
+		// Override entrypoint for scripts to handle images with custom entrypoints
+		spec.Entrypoint = []string{"/bin/sh"}
+		spec.Command = []string{"-c", script}
+	}
+
+	// Mount the results directory
+	spec.Mounts = append(spec.Mounts, podman.Mount{
+		Source: resultsDir,
+		Target: podman.ResultsDir,
+	})
+
+	// Add workspace mounts
+	for name, ws := range pr.Workspaces {
+		if ws.Path != "" {
+			spec.Mounts = append(spec.Mounts, podman.Mount{
+				Source: ws.Path,
+				Target: "/workspace/" + name,
+			})
+		}
+	}
+
+	// Add volume mounts from the step
+	for _, vm := range step.VolumeMounts {
+		if dir, ok := volumeDirs[vm.Name]; ok {
+			spec.Mounts = append(spec.Mounts, podman.Mount{
+				Source: dir,
+				Target: vm.MountPath,
+			})
+		}
+	}
+
+	return spec
 }
 
 // substituteVariables replaces Tekton variable references with actual values
