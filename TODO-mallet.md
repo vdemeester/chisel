@@ -155,18 +155,18 @@ Transform chisel into a monorepo supporting two backends:
   - [ ] Connection pooling
   - [ ] Parallel container cleanup
   - [ ] Volume reuse strategies
-- [ ] Documentation
-  - [ ] Update root `README.md` (overview, when to use each tool, installation)
-  - [ ] Update `cmd/mallet/README.md` (Podman setup, troubleshooting)
+- [x] Documentation
+  - [x] Update root `README.md` (overview, when to use each tool, installation)
+  - [x] Create `cmd/mallet/README.md` (Podman setup, troubleshooting)
   - [ ] Create `docs/ARCHITECTURE.md` (backend abstraction design)
   - [ ] Create `docs/MIGRATION.md` (Chisel → Mallet guide)
 - [ ] CI/CD updates
   - [ ] Update `.github/workflows/test.yaml` (build/test both)
   - [ ] Update `.github/workflows/release.yaml` (release both)
   - [ ] Update `.goreleaser.yaml` (multi-arch builds)
-- [ ] Example updates
+- [x] Example updates
   - [ ] Add comments to all YAML files
-  - [ ] Create `examples/README.md`
+  - [x] Create `examples/README.md`
 - [ ] Final testing
   - [ ] All examples with both tools
   - [ ] Cross-platform testing
