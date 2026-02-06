@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/vdemeester/chisel/pkg/backend"
@@ -47,6 +48,13 @@ func (b *PodmanBackend) ExecuteStep(ctx context.Context, req *backend.StepReques
 		return nil, fmt.Errorf("failed to initialize podman client: %w", err)
 	}
 
+	// Create a temp directory for Tekton results
+	resultsDir, err := os.MkdirTemp("", "tekton-results-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create results directory: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(resultsDir) }()
+
 	// Build the container spec from the step request
 	spec := ContainerSpec{
 		Image:   req.Image,
@@ -82,6 +90,12 @@ func (b *PodmanBackend) ExecuteStep(ctx context.Context, req *backend.StepReques
 		spec.WorkDir = req.WorkDir
 	}
 
+	// Mount the results directory
+	spec.Mounts = append(spec.Mounts, Mount{
+		Source: resultsDir,
+		Target: ResultsDir,
+	})
+
 	// Add workspace mounts
 	for name, ws := range req.Workspaces {
 		if ws.SourcePath != "" {
@@ -112,11 +126,18 @@ func (b *PodmanBackend) ExecuteStep(ctx context.Context, req *backend.StepReques
 		return nil, fmt.Errorf("container execution failed: %w", err)
 	}
 
+	// Collect results from the temp directory
+	results, err := CollectResults(resultsDir)
+	if err != nil {
+		// Log warning but don't fail - results are optional
+		results = make(map[string]string)
+	}
+
 	return &backend.StepResult{
 		ExitCode: result.ExitCode,
 		Stdout:   result.Stdout,
 		Stderr:   result.Stderr,
-		Results:  make(map[string]string), // TODO: Capture results from /tekton/results/
+		Results:  results,
 	}, nil
 }
 
@@ -133,9 +154,20 @@ func (b *PodmanBackend) StopSidecar(ctx context.Context, handle *backend.Sidecar
 }
 
 // ReadResult reads a result file from a completed step container.
-// TODO: Implement using podman exec or container copy.
+// For the Podman backend, results are captured via mounted temp directories
+// during ExecuteStep, so this method is primarily for reading from a path.
 func (b *PodmanBackend) ReadResult(ctx context.Context, req *backend.ResultRequest) (string, error) {
-	return "", ErrNotImplemented
+	if req == nil {
+		return "", errors.New("result request is nil")
+	}
+
+	// If the path looks like a local path (starts with /tmp or similar),
+	// read directly from the filesystem
+	if req.Path != "" {
+		return ReadResultFromPath(req.Path)
+	}
+
+	return "", fmt.Errorf("cannot read result: container %s no longer exists", req.ContainerID)
 }
 
 // Cleanup releases all resources created by this backend.
