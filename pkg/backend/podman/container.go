@@ -20,6 +20,9 @@ type ContainerSpec struct {
 	// Command is the command to execute
 	Command []string
 
+	// Entrypoint overrides the image's default entrypoint
+	Entrypoint []string
+
 	// Env contains environment variables
 	Env map[string]string
 
@@ -74,13 +77,15 @@ func httpClient(socketPath string) *http.Client {
 
 // createContainerRequest is the JSON body for container creation.
 type createContainerRequest struct {
-	Image      string            `json:"image"`
-	Command    []string          `json:"command,omitempty"`
-	Env        map[string]string `json:"env,omitempty"`
-	WorkDir    string            `json:"work_dir,omitempty"`
-	Name       string            `json:"name,omitempty"`
-	Mounts     []mountSpec       `json:"mounts,omitempty"`
-	StopSignal string            `json:"stop_signal,omitempty"`
+	Image            string            `json:"image"`
+	Command          []string          `json:"command,omitempty"`
+	Entrypoint       []string          `json:"entrypoint,omitempty"`
+	Env              map[string]string `json:"env,omitempty"`
+	WorkDir          string            `json:"work_dir,omitempty"`
+	CreateWorkingDir bool              `json:"create_working_dir,omitempty"`
+	Name             string            `json:"name,omitempty"`
+	Mounts           []mountSpec       `json:"mounts,omitempty"`
+	StopSignal       string            `json:"stop_signal,omitempty"`
 }
 
 type mountSpec struct {
@@ -170,11 +175,13 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) (string, error) {
 
 	// Build the request body
 	reqBody := createContainerRequest{
-		Image:   spec.Image,
-		Command: spec.Command,
-		Env:     spec.Env,
-		WorkDir: spec.WorkDir,
-		Name:    spec.Name,
+		Image:            spec.Image,
+		Command:          spec.Command,
+		Entrypoint:       spec.Entrypoint,
+		Env:              spec.Env,
+		WorkDir:          spec.WorkDir,
+		CreateWorkingDir: true, // Create workdir if it doesn't exist
+		Name:             spec.Name,
 	}
 
 	// Convert mounts

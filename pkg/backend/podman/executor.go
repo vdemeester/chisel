@@ -71,8 +71,10 @@ func (b *PodmanBackend) ExecuteStep(ctx context.Context, req *backend.StepReques
 
 	// If no command specified, try to use the step's script
 	if len(spec.Command) == 0 && req.Step != nil && req.Step.Script != "" {
-		// For scripts, we wrap in sh -c
-		spec.Command = []string{"sh", "-c", req.Step.Script}
+		// For scripts, override entrypoint to ensure shell execution
+		// This handles images with custom entrypoints (like alpine/git)
+		spec.Entrypoint = []string{"/bin/sh"}
+		spec.Command = []string{"-c", req.Step.Script}
 	}
 
 	// Fallback to echo if still no command

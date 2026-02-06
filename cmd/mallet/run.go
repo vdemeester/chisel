@@ -201,10 +201,27 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 	taskStart := time.Now()
 	log.TaskStart(task.Name)
 
+	// Create temp directories for task volumes (emptyDir)
+	volumeDirs := make(map[string]string)
+	volumes := orchestrator.ParseVolumes(task.Volumes)
+	for name, vol := range volumes {
+		if vol.Type == orchestrator.VolumeTypeEmptyDir {
+			dir, err := os.MkdirTemp("", fmt.Sprintf("tekton-vol-%s-%s-*", task.Name, name))
+			if err != nil {
+				return nil, fmt.Errorf("failed to create volume directory: %w", err)
+			}
+			volumeDirs[name] = dir
+			defer func(d string) { _ = os.RemoveAll(d) }(dir)
+		}
+	}
+
 	// Collect results from all steps
 	stepResults := make(map[string]string)
 
-	for i, step := range task.Steps {
+	for i, originalStep := range task.Steps {
+		// Apply stepTemplate defaults
+		step := orchestrator.ApplyStepTemplate(originalStep, task.StepTemplate)
+
 		stepName := step.Name
 		if stepName == "" {
 			stepName = fmt.Sprintf("step-%d", i)
@@ -237,12 +254,19 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 			env[k] = substituteVariables(v, &task, pr, taskResults)
 		}
 
+		// Substitute variables in workingDir
+		workDir := step.WorkingDir
+		if workDir != "" {
+			workDir = substituteVariables(workDir, &task, pr, taskResults)
+		}
+
 		// Create a copy of step with substituted values
 		substitutedStep := step
 		substitutedStep.Script = script
 		substitutedStep.Command = command
 		substitutedStep.Args = args
 		substitutedStep.Env = env
+		substitutedStep.WorkingDir = workDir
 
 		// Build the step request
 		req := &backend.StepRequest{
@@ -251,7 +275,7 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 			Command: command,
 			Args:    args,
 			Env:     env,
-			WorkDir: step.WorkingDir,
+			WorkDir: workDir,
 		}
 
 		// Convert workspace bindings
@@ -262,6 +286,18 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 				MountPath:  "/workspace/" + name,
 				SourceType: string(ws.Type),
 				SourcePath: ws.Path,
+			}
+		}
+
+		// Add volume mounts from the step
+		for _, vm := range step.VolumeMounts {
+			if dir, ok := volumeDirs[vm.Name]; ok {
+				req.Workspaces["vol-"+vm.Name] = backend.WorkspaceMount{
+					Name:       vm.Name,
+					MountPath:  vm.MountPath,
+					SourceType: "emptyDir",
+					SourcePath: dir,
+				}
 			}
 		}
 
