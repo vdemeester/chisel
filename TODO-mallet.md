@@ -16,54 +16,48 @@ Transform chisel into a monorepo supporting two backends:
 
 ## Implementation Phases
 
-### Phase 1: Backend Abstraction Layer ⏳
+### Phase 1: Backend Abstraction Layer ✅
 **Timeline:** Week 1
-**Status:** Not started
-**Estimated LOC:** ~800 LOC (refactoring + new)
+**Status:** COMPLETE (PR #14 merged 2026-02-05)
+**Actual LOC:** +811/-164
 
-- [ ] Create `pkg/backend/` package (~150 LOC)
-  - [ ] Define `Backend` interface in `backend.go`
-  - [ ] Define `StepRequest`, `StepResult`, `SidecarRequest`, `WorkspaceMount` types in `types.go`
-  - [ ] Add comprehensive godoc comments
-- [ ] Create `pkg/orchestrator/` package (~600 LOC moved)
-  - [ ] Move `pkg/executor/scheduler.go` → `pkg/orchestrator/scheduler.go`
-  - [ ] Move `pkg/executor/matrix.go` → `pkg/orchestrator/matrix.go`
-  - [ ] Move `pkg/executor/when.go` → `pkg/orchestrator/when.go`
-  - [ ] Move `pkg/executor/retry.go` → `pkg/orchestrator/retry.go`
-  - [ ] Move `pkg/executor/timeout.go` → `pkg/orchestrator/timeout.go`
-  - [ ] Move `pkg/executor/steptemplate.go` → `pkg/orchestrator/steptemplate.go`
-  - [ ] Move `pkg/executor/volumes.go` → `pkg/orchestrator/volumes.go`
-  - [ ] Move `pkg/executor/results.go` → `pkg/orchestrator/results.go`
-  - [ ] Extract substitution logic from executor.go → `substitution.go`
-  - [ ] Update package declarations and imports
-- [ ] Create `pkg/backend/dagger/` package (~550 LOC refactored)
-  - [ ] Move and refactor `pkg/executor/executor.go` to implement `Backend` interface
-  - [ ] Move `pkg/executor/sidecar.go` → `pkg/backend/dagger/sidecar.go`
-  - [ ] Implement `ExecuteStep()`, `StartSidecar()`, `StopSidecar()`, `ReadResult()`, `Cleanup()`
-- [ ] Update Chisel CLI (~50 LOC changed)
-  - [ ] Update `cmd/chisel/run.go` to use `pkg/backend/dagger.Backend`
-  - [ ] Update imports to use `pkg/orchestrator`
-- [ ] **Verify:** All existing tests pass, all examples work, no Chisel regressions
+- [x] Create `pkg/backend/` package
+  - [x] Define `Backend` interface in `backend.go`
+  - [x] Define `StepRequest`, `StepResult`, `SidecarRequest`, `WorkspaceMount` types
+  - [x] Add comprehensive godoc comments
+- [x] Create `pkg/orchestrator/` package (~600 LOC moved)
+  - [x] Move scheduler, matrix, when, retry, timeout, steptemplate, volumes, results
+  - [x] Export all functions for backend use
+  - [x] Update package declarations and imports
+- [x] Create `pkg/backend/dagger/` package
+  - [x] Refactor executor.go to implement `Backend` interface
+  - [x] Move sidecar.go
+  - [x] All interface methods implemented
+- [x] Update Chisel CLI
+  - [x] Update imports to use new backend structure
+- [x] **Verified:** All 60+ tests pass, all examples work, zero regressions
 
-### Phase 2: Mallet CLI Stub ⏳
+### Phase 2: Mallet CLI Stub ✅
 **Timeline:** Week 2
-**Status:** Not started
-**Estimated LOC:** ~500 LOC (copied/adapted)
+**Status:** COMPLETE (2026-02-06)
+**Actual LOC:** +548 (4 commits)
 
-- [ ] Create `cmd/mallet/` directory (~400 LOC copied)
-  - [ ] Copy and adapt `cmd/chisel/main.go` → `cmd/mallet/main.go`
-  - [ ] Copy and adapt `cmd/chisel/root.go` → `cmd/mallet/root.go`
-  - [ ] Copy and adapt `cmd/chisel/run.go` → `cmd/mallet/run.go` (use podman backend)
-  - [ ] Copy and adapt `cmd/chisel/workspace.go` → `cmd/mallet/workspace.go`
-  - [ ] Update package names and help text
-- [ ] Create stub `pkg/backend/podman/` package (~100 LOC)
-  - [ ] Create `executor.go` with stub `Backend` implementation
-  - [ ] Implement all interface methods returning "not implemented" errors
-- [ ] Create `Makefile` with build targets
-- [ ] Update `.goreleaser.yaml` for multi-binary builds
+- [x] Create `cmd/mallet/` directory
+  - [x] main.go, root.go, run.go, workspace.go
+  - [x] Uses Podman backend, shares parser/types/ui with chisel
+- [x] Create stub `pkg/backend/podman/` package
+  - [x] TDD: Tests written first (8 tests)
+  - [x] All interface methods return ErrNotImplemented
+- [x] Create `Makefile` with build targets
+  - [x] build, build-chisel, build-mallet, test, lint, clean, install, check
+- [x] Update `.goreleaser.yaml` for multi-binary builds
+  - [x] Separate builds and archives for chisel and mallet
 - [ ] Update root `README.md` to mention both tools
 - [ ] Create `cmd/mallet/README.md`
-- [ ] **Verify:** Both binaries compile, mallet fails gracefully with "not implemented"
+- [x] **Verified:** Both binaries compile, mallet fails gracefully with "not implemented"
+  - chisel: 29MB, mallet: 15MB
+  - Dry-run works for both
+  - mallet execution: "podman backend not yet implemented"
 
 ### Phase 3: Podman Core Implementation ⏳
 **Timeline:** Weeks 3-4
