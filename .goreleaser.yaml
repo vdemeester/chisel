@@ -22,10 +22,36 @@ builds:
       - -s -w
       - -X github.com/vdemeester/chisel/internal/version.Version={{.Version}}
 
+  - id: mallet
+    main: ./cmd/mallet
+    binary: mallet
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/vdemeester/chisel/internal/version.Version={{.Version}}
+
 archives:
   - id: chisel
+    builds:
+      - chisel
     format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "chisel_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE*
+
+  - id: mallet
+    builds:
+      - mallet
+    format: tar.gz
+    name_template: "mallet_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
       - LICENSE*
