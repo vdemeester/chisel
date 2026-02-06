@@ -24,6 +24,11 @@ func TestNewPodmanBackend(t *testing.T) {
 
 // TestExecuteStep verifies ExecuteStep runs a container.
 func TestExecuteStep(t *testing.T) {
+	// Skip if Podman is not available
+	if detectSocketPath() == "" {
+		t.Skip("Podman not available")
+	}
+
 	b := NewPodmanBackend()
 	ctx := context.Background()
 
@@ -50,6 +55,11 @@ func TestExecuteStep(t *testing.T) {
 
 // TestExecuteStepWithEnv verifies ExecuteStep handles environment variables.
 func TestExecuteStepWithEnv(t *testing.T) {
+	// Skip if Podman is not available
+	if detectSocketPath() == "" {
+		t.Skip("Podman not available")
+	}
+
 	b := NewPodmanBackend()
 	ctx := context.Background()
 
