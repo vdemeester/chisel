@@ -86,6 +86,7 @@ type createContainerRequest struct {
 	Name             string            `json:"name,omitempty"`
 	Mounts           []mountSpec       `json:"mounts,omitempty"`
 	StopSignal       string            `json:"stop_signal,omitempty"`
+	Pod              string            `json:"pod,omitempty"` // Pod ID to join
 }
 
 type mountSpec struct {

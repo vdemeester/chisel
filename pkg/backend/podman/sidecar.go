@@ -15,17 +15,28 @@ import (
 // Pod API types
 
 type createPodRequest struct {
-	Name         string `json:"name"`
-	InfraCommand string `json:"infra_command,omitempty"`
+	Name    string   `json:"name"`
+	HostAdd []string `json:"hostadd,omitempty"` // Add entries to /etc/hosts (format: "host:ip")
 }
 
 type createPodResponse struct {
 	Id string `json:"Id"`
 }
 
+// PodOptions configures pod creation.
+type PodOptions struct {
+	// HostAliases maps hostnames to IP addresses (added to /etc/hosts)
+	HostAliases map[string]string
+}
+
 // CreatePod creates a new Podman pod.
 // Pods provide a shared network namespace for containers.
 func CreatePod(ctx context.Context, name string) (string, error) {
+	return CreatePodWithOptions(ctx, name, PodOptions{})
+}
+
+// CreatePodWithOptions creates a new Podman pod with additional options.
+func CreatePodWithOptions(ctx context.Context, name string, opts PodOptions) (string, error) {
 	socketPath := detectSocketPath()
 	if socketPath == "" {
 		return "", ErrNoSocketFound
@@ -35,6 +46,11 @@ func CreatePod(ctx context.Context, name string) (string, error) {
 
 	reqBody := createPodRequest{
 		Name: name,
+	}
+
+	// Add host aliases (for sidecar hostname resolution)
+	for host, ip := range opts.HostAliases {
+		reqBody.HostAdd = append(reqBody.HostAdd, fmt.Sprintf("%s:%s", host, ip))
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -172,11 +188,14 @@ func CreateContainerInPod(ctx context.Context, podID string, spec ContainerSpec)
 
 	// Build the request body with pod
 	reqBody := createContainerRequest{
-		Image:   spec.Image,
-		Command: spec.Command,
-		Env:     spec.Env,
-		WorkDir: spec.WorkDir,
-		Name:    spec.Name,
+		Image:            spec.Image,
+		Command:          spec.Command,
+		Entrypoint:       spec.Entrypoint,
+		Env:              spec.Env,
+		WorkDir:          spec.WorkDir,
+		CreateWorkingDir: true, // Create workdir if it doesn't exist
+		Name:             spec.Name,
+		Pod:              podID, // Join this pod
 	}
 
 	// Convert mounts
@@ -197,9 +216,8 @@ func CreateContainerInPod(ctx context.Context, podID string, spec ContainerSpec)
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Create container in pod
-	url := fmt.Sprintf("http://d/v5.0.0/libpod/containers/create?pod=%s", podID)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	// Create container in pod (pod ID in body, not query param)
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://d/v5.0.0/libpod/containers/create", bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -282,4 +300,59 @@ func (b *PodmanBackend) stopSidecarImpl(ctx context.Context, handle *backend.Sid
 
 	// Remove the container
 	return RemoveContainer(ctx, handle.ID, true)
+}
+
+// RunContainerInPod creates, starts, waits for, and retrieves logs from a container in a pod.
+// This is similar to RunContainer but runs the container inside an existing pod.
+func RunContainerInPod(ctx context.Context, podID string, spec ContainerSpec) (*ContainerResult, error) {
+	// Create container in pod
+	id, err := CreateContainerInPod(ctx, podID, spec)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start container
+	if err := StartContainer(ctx, id); err != nil {
+		_ = RemoveContainer(ctx, id, true)
+		return nil, fmt.Errorf("failed to start container: %w", err)
+	}
+
+	// Wait for container (with timeout if specified)
+	var waitCtx context.Context
+	var cancel context.CancelFunc
+	if spec.Timeout > 0 {
+		waitCtx, cancel = context.WithTimeout(ctx, spec.Timeout)
+		defer cancel()
+	} else {
+		waitCtx = ctx
+	}
+	exitCode, err := WaitContainer(waitCtx, id)
+	if err != nil {
+		// Try to get logs even on error
+		stdout, stderr, _ := GetContainerLogs(ctx, id)
+		_ = RemoveContainer(ctx, id, true)
+		return &ContainerResult{
+			ContainerID: id,
+			ExitCode:    -1,
+			Stdout:      stdout,
+			Stderr:      stderr,
+		}, err
+	}
+
+	// Get logs
+	stdout, stderr, err := GetContainerLogs(ctx, id)
+	if err != nil {
+		_ = RemoveContainer(ctx, id, true)
+		return nil, fmt.Errorf("failed to get logs: %w", err)
+	}
+
+	// Remove container
+	_ = RemoveContainer(ctx, id, true)
+
+	return &ContainerResult{
+		ContainerID: id,
+		ExitCode:    exitCode,
+		Stdout:      stdout,
+		Stderr:      stderr,
+	}, nil
 }
