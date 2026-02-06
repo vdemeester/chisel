@@ -560,6 +560,10 @@ func (p *Parser) resolveTask(pt TektonPipelineTask, baseDir string, pipelinePara
 		if strVal, ok := value.(string); ok {
 			if strings.HasPrefix(strVal, "$(params.") && strings.HasSuffix(strVal, ")") {
 				paramName := strings.TrimPrefix(strings.TrimSuffix(strVal, ")"), "$(params.")
+				// Handle array parameter references like $(params.packages[*])
+				if strings.HasSuffix(paramName, "[*]") {
+					paramName = strings.TrimSuffix(paramName, "[*]")
+				}
 				if pv, ok := pipelineParams[paramName]; ok {
 					resolved.Params[param.Name] = pv
 					continue
