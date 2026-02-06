@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/vdemeester/chisel/pkg/backend"
 	"github.com/vdemeester/chisel/pkg/backend/podman"
+	"github.com/vdemeester/chisel/pkg/orchestrator"
 	"github.com/vdemeester/chisel/pkg/parser"
 	"github.com/vdemeester/chisel/pkg/types"
 	"github.com/vdemeester/chisel/pkg/ui"
@@ -136,22 +138,62 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 	pipelineStart := time.Now()
 	log.PipelineStart(resolved.Name)
 
-	// Execute each task sequentially
-	for _, task := range resolved.Tasks {
-		if err := executeTask(ctx, be, task, resolved, log); err != nil {
-			log.PipelineEnd(resolved.Name, time.Since(pipelineStart), err)
-			return fail(fmt.Errorf("task %s failed: %w", task.Name, err))
+	// Results store for passing between tasks
+	results := make(map[string]map[string]string)
+	var resultsMu sync.Mutex
+
+	// Expand matrix tasks before building DAG
+	tasks := orchestrator.ExpandAllMatrixTasks(resolved.Tasks)
+
+	// Build DAG and execute tasks in parallel where possible
+	dag := orchestrator.BuildDAG(tasks)
+	pipelineErr := dag.ExecuteParallel(func(task *types.ResolvedTask) error {
+		// Evaluate when conditions before executing
+		resultsMu.Lock()
+		shouldRun := orchestrator.EvaluateWhen(task, task.Params, results)
+		resultsMu.Unlock()
+
+		if !shouldRun {
+			log.Info(fmt.Sprintf("task %s skipped (when conditions not met)", task.Name))
+			return nil
+		}
+
+		taskResults, err := executeTask(ctx, be, *task, resolved, log)
+		if err != nil {
+			return err
+		}
+
+		// Store task results for dependent tasks
+		if len(taskResults) > 0 {
+			resultsMu.Lock()
+			results[task.Name] = taskResults
+			resultsMu.Unlock()
+		}
+
+		return nil
+	})
+
+	// Execute finally tasks (always run, even on error)
+	for _, task := range resolved.FinallyTasks {
+		if _, err := executeTask(ctx, be, task, resolved, log); err != nil {
+			log.Warn(fmt.Sprintf("finally task %s failed: %v", task.Name, err))
 		}
 	}
 
-	log.PipelineEnd(resolved.Name, time.Since(pipelineStart), nil)
+	log.PipelineEnd(resolved.Name, time.Since(pipelineStart), pipelineErr)
+	if pipelineErr != nil {
+		return fail(pipelineErr)
+	}
 	return nil
 }
 
-// executeTask runs all steps in a task.
-func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTask, pr *types.ResolvedPipelineRun, log ui.Logger) error {
+// executeTask runs all steps in a task and returns task results.
+func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTask, pr *types.ResolvedPipelineRun, log ui.Logger) (map[string]string, error) {
 	taskStart := time.Now()
 	log.TaskStart(task.Name)
+
+	// Collect results from all steps
+	taskResults := make(map[string]string)
 
 	for i, step := range task.Steps {
 		stepName := step.Name
@@ -188,7 +230,7 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 		if err != nil {
 			log.StepEnd(stepName, time.Since(stepStart), err)
 			log.TaskEnd(task.Name, time.Since(taskStart), err)
-			return fmt.Errorf("step %s failed: %w", stepName, err)
+			return nil, fmt.Errorf("step %s failed: %w", stepName, err)
 		}
 
 		// Log output
@@ -204,12 +246,17 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 			err := fmt.Errorf("step exited with code %d", result.ExitCode)
 			log.StepEnd(stepName, time.Since(stepStart), err)
 			log.TaskEnd(task.Name, time.Since(taskStart), err)
-			return fmt.Errorf("step %s exited with code %d", stepName, result.ExitCode)
+			return nil, fmt.Errorf("step %s exited with code %d", stepName, result.ExitCode)
+		}
+
+		// Collect results from this step
+		for name, value := range result.Results {
+			taskResults[name] = value
 		}
 
 		log.StepEnd(stepName, time.Since(stepStart), nil)
 	}
 
 	log.TaskEnd(task.Name, time.Since(taskStart), nil)
-	return nil
+	return taskResults, nil
 }
