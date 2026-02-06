@@ -133,7 +133,7 @@ Transform chisel into a monorepo supporting two backends:
   - [x] Variable substitution in workingDir
   - [x] Override entrypoint for scripts (handle images with custom entrypoints)
   - [x] Create workingDir if it doesn't exist
-- [x] Example testing (12/13 passing)
+- [x] Example testing (13/13 passing)
   - [x] hello-pipelinerun: PASS
   - [x] params-pipelinerun: PASS (array param expansion as designed)
   - [x] results-pipelinerun: PASS
@@ -146,10 +146,11 @@ Transform chisel into a monorepo supporting two backends:
   - [x] volumes-pipelinerun: PASS
   - [x] verbose-pipelinerun: PASS
   - [x] workspace-override-pipelinerun: PASS
-  - [ ] sidecar-pipelinerun: PARTIAL (containers don't share network namespace)
-- [ ] Known limitations
-  - [ ] Sidecar networking: containers run standalone, not in pods
-  - [ ] Sidecars accessible via localhost only, not by hostname
+  - [x] sidecar-pipelinerun: PASS (pod-based execution with shared network)
+- [x] Pod-based task execution (like Tekton)
+  - [x] Each task runs in its own Podman pod
+  - [x] Sidecars and steps share network namespace
+  - [x] Host aliases for sidecar hostname resolution (sidecars accessible by name)
 - [ ] Performance optimization
   - [ ] Connection pooling
   - [ ] Parallel container cleanup
