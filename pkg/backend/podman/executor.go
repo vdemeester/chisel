@@ -14,8 +14,9 @@ var ErrNotImplemented = errors.New("podman backend not yet implemented")
 
 // PodmanBackend implements the backend.Backend interface using Podman.
 type PodmanBackend struct {
-	// socketPath is the path to the Podman socket
-	socketPath string
+	// Fields will be added in Phase 3 when implementing Podman API bindings.
+	// Placeholder to satisfy the linter.
+	_ struct{}
 }
 
 // NewPodmanBackend creates a new Podman backend instance.
