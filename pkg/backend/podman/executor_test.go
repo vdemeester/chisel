@@ -3,6 +3,7 @@ package podman
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/vdemeester/chisel/pkg/backend"
@@ -21,22 +22,62 @@ func TestNewPodmanBackend(t *testing.T) {
 	}
 }
 
-// TestExecuteStepNotImplemented verifies ExecuteStep returns ErrNotImplemented.
-func TestExecuteStepNotImplemented(t *testing.T) {
+// TestExecuteStep verifies ExecuteStep runs a container.
+func TestExecuteStep(t *testing.T) {
 	b := NewPodmanBackend()
 	ctx := context.Background()
 
 	req := &backend.StepRequest{
-		Image:   "alpine:latest",
-		Command: []string{"echo", "hello"},
+		Image:   "docker.io/library/alpine:latest",
+		Command: []string{"echo", "hello from mallet"},
 	}
 
 	result, err := b.ExecuteStep(ctx, req)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	if err != nil {
+		t.Fatalf("ExecuteStep failed: %v", err)
 	}
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("expected ErrNotImplemented, got %v", err)
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if result.ExitCode != 0 {
+		t.Errorf("expected exit code 0, got %d", result.ExitCode)
+	}
+	if !strings.Contains(result.Stdout, "hello from mallet") {
+		t.Errorf("expected stdout to contain 'hello from mallet', got: %s", result.Stdout)
+	}
+	t.Logf("ExecuteStep output: %s", result.Stdout)
+}
+
+// TestExecuteStepWithEnv verifies ExecuteStep handles environment variables.
+func TestExecuteStepWithEnv(t *testing.T) {
+	b := NewPodmanBackend()
+	ctx := context.Background()
+
+	req := &backend.StepRequest{
+		Image:   "docker.io/library/alpine:latest",
+		Command: []string{"sh", "-c", "echo $TEST_VAR"},
+		Env: map[string]string{
+			"TEST_VAR": "mallet-test-value",
+		},
+	}
+
+	result, err := b.ExecuteStep(ctx, req)
+	if err != nil {
+		t.Fatalf("ExecuteStep failed: %v", err)
+	}
+	if !strings.Contains(result.Stdout, "mallet-test-value") {
+		t.Errorf("expected stdout to contain 'mallet-test-value', got: %s", result.Stdout)
+	}
+}
+
+// TestExecuteStepNilRequest verifies ExecuteStep handles nil request.
+func TestExecuteStepNilRequest(t *testing.T) {
+	b := NewPodmanBackend()
+	ctx := context.Background()
+
+	result, err := b.ExecuteStep(ctx, nil)
+	if err == nil {
+		t.Fatal("expected error for nil request")
 	}
 	if result != nil {
 		t.Errorf("expected nil result, got %+v", result)
@@ -107,17 +148,15 @@ func TestReadResultNotImplemented(t *testing.T) {
 	}
 }
 
-// TestCleanupNotImplemented verifies Cleanup returns ErrNotImplemented.
-func TestCleanupNotImplemented(t *testing.T) {
+// TestCleanup verifies Cleanup works.
+func TestCleanup(t *testing.T) {
 	b := NewPodmanBackend()
 	ctx := context.Background()
 
+	// Cleanup should work even without any containers
 	err := b.Cleanup(ctx)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("expected ErrNotImplemented, got %v", err)
+	if err != nil {
+		t.Errorf("Cleanup failed: %v", err)
 	}
 }
 
