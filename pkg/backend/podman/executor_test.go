@@ -136,22 +136,33 @@ func TestStopSidecarNotImplemented(t *testing.T) {
 	}
 }
 
-// TestReadResultNotImplemented verifies ReadResult returns ErrNotImplemented.
-func TestReadResultNotImplemented(t *testing.T) {
+// TestReadResultMissingFile verifies ReadResult returns an error for missing files.
+func TestReadResultMissingFile(t *testing.T) {
 	b := NewPodmanBackend()
 	ctx := context.Background()
 
 	req := &backend.ResultRequest{
 		ContainerID: "container-123",
-		Path:        "/tekton/results/output",
+		Path:        "/nonexistent/path/to/result",
 	}
 
 	result, err := b.ReadResult(ctx, req)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		t.Fatal("expected error for missing file, got nil")
 	}
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("expected ErrNotImplemented, got %v", err)
+	if result != "" {
+		t.Errorf("expected empty result, got %q", result)
+	}
+}
+
+// TestReadResultNilRequest verifies ReadResult handles nil request.
+func TestReadResultNilRequest(t *testing.T) {
+	b := NewPodmanBackend()
+	ctx := context.Background()
+
+	result, err := b.ReadResult(ctx, nil)
+	if err == nil {
+		t.Fatal("expected error for nil request, got nil")
 	}
 	if result != "" {
 		t.Errorf("expected empty result, got %q", result)
