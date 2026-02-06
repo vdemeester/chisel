@@ -12,7 +12,7 @@ func TestCreateContainer(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	spec := ContainerSpec{
 		Image:   "docker.io/library/alpine:latest",
@@ -42,7 +42,7 @@ func TestRunContainer(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	spec := ContainerSpec{
 		Image:   "docker.io/library/alpine:latest",
@@ -71,7 +71,7 @@ func TestRunContainerWithEnv(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	spec := ContainerSpec{
 		Image:   "docker.io/library/alpine:latest",
@@ -97,7 +97,7 @@ func TestRunContainerWithWorkDir(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	spec := ContainerSpec{
 		Image:   "docker.io/library/alpine:latest",
@@ -121,7 +121,7 @@ func TestRunContainerWithTimeout(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	spec := ContainerSpec{
 		Image:   "docker.io/library/alpine:latest",
@@ -147,7 +147,7 @@ func TestRunContainerFailure(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	spec := ContainerSpec{
 		Image:   "docker.io/library/alpine:latest",
@@ -213,7 +213,7 @@ func TestRemoveContainer(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	spec := ContainerSpec{
 		Image:   "docker.io/library/alpine:latest",
@@ -255,7 +255,7 @@ func TestContainerLifecycle(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	ctx := client.Context()
 

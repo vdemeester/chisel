@@ -14,7 +14,7 @@ func TestNewClientDefaultSocket(t *testing.T) {
 		t.Logf("NewClient returned error (expected if Podman not running): %v", err)
 		return
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if client.socketPath == "" {
 		t.Error("expected socketPath to be set")
@@ -30,7 +30,7 @@ func TestNewClientWithSocket(t *testing.T) {
 		t.Logf("NewClientWithSocket returned error (expected): %v", err)
 		return
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if client.socketPath != socketPath {
 		t.Errorf("expected socketPath %q, got %q", socketPath, client.socketPath)
@@ -86,7 +86,7 @@ func TestClientIsConnected(t *testing.T) {
 	if err != nil {
 		t.Skip("Podman not available")
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	connected := client.IsConnected(context.Background())
 	t.Logf("IsConnected: %v", connected)

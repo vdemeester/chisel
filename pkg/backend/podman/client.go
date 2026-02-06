@@ -65,7 +65,7 @@ func (c *Client) IsConnected(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	conn.Close()
+	_ = conn.Close()
 	return true
 }
 

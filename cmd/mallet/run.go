@@ -131,7 +131,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 
 	// Execute via Podman backend
 	be := podman.NewPodmanBackend()
-	defer be.Cleanup(ctx)
+	defer func() { _ = be.Cleanup(ctx) }()
 
 	pipelineStart := time.Now()
 	log.PipelineStart(resolved.Name)

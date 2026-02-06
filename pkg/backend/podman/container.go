@@ -121,7 +121,7 @@ func PullImage(ctx context.Context, image string) error {
 	if err != nil {
 		return fmt.Errorf("failed to check image: %w", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// Image exists
 	if resp.StatusCode == http.StatusNoContent {
@@ -138,7 +138,7 @@ func PullImage(ctx context.Context, image string) error {
 	if err != nil {
 		return fmt.Errorf("failed to pull image: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -207,7 +207,7 @@ func CreateContainer(ctx context.Context, spec ContainerSpec) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create container: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -240,7 +240,7 @@ func StartContainer(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed to start container: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -271,7 +271,7 @@ func WaitContainer(ctx context.Context, id string) (int, error) {
 		}
 		return -1, fmt.Errorf("failed to wait for container: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -315,7 +315,7 @@ func GetContainerLogs(ctx context.Context, id string) (stdout, stderr string, er
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get container logs: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -339,9 +339,10 @@ func GetContainerLogs(ctx context.Context, id string) (stdout, stderr string, er
 				if frameSize > len(data) {
 					frameSize = len(data)
 				}
-				if streamType == 1 {
+				switch streamType {
+				case 1:
 					stdoutBuf.Write(data[:frameSize])
-				} else if streamType == 2 {
+				case 2:
 					stderrBuf.Write(data[:frameSize])
 				}
 				data = data[frameSize:]
@@ -377,7 +378,7 @@ func RemoveContainer(ctx context.Context, id string, force bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to remove container: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -467,7 +468,7 @@ func StopContainer(ctx context.Context, id string, timeout *uint) error {
 	if err != nil {
 		return fmt.Errorf("failed to stop container: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotModified {
 		respBody, _ := io.ReadAll(resp.Body)
