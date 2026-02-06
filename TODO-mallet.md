@@ -160,10 +160,10 @@ Transform chisel into a monorepo supporting two backends:
   - [x] Create `cmd/mallet/README.md` (Podman setup, troubleshooting)
   - [x] Create `docs/ARCHITECTURE.md` (backend abstraction design)
   - [x] ~~Create `docs/MIGRATION.md`~~ (skipped - README covers tool selection)
-- [ ] CI/CD updates
-  - [ ] Update `.github/workflows/test.yaml` (build/test both)
-  - [ ] Update `.github/workflows/release.yaml` (release both)
-  - [ ] Update `.goreleaser.yaml` (multi-arch builds)
+- [x] CI/CD updates
+  - [x] Update `.github/workflows/ci.yaml` (build/test both, mallet dry-run tests)
+  - [x] Update `.github/workflows/release.yaml` (verify builds, pinned actions)
+  - [x] `.goreleaser.yaml` already configured for multi-binary builds
 - [x] Example updates
   - [ ] Add comments to all YAML files
   - [x] Create `examples/README.md`

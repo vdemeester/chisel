@@ -67,6 +67,8 @@ jobs:
           go-version-file: go.mod
       - name: Build chisel
         run: go build -o chisel ./cmd/chisel
+      - name: Build mallet
+        run: go build -o mallet ./cmd/mallet
       - name: Install Dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR=$HOME/.local/bin sh
@@ -91,3 +93,12 @@ jobs:
           ./chisel run examples/simple/retry-pipelinerun.yaml --debug
           ./chisel run examples/simple/sidecar-pipelinerun.yaml --debug
           ./chisel run examples/simple/when-pipelinerun.yaml --debug
+
+          # Test mallet dry-run (Podman not available in CI without complex setup)
+          ./mallet run examples/simple/hello-task.yaml --dry-run --debug
+          ./mallet run examples/simple/hello-pipelinerun.yaml --dry-run --debug
+          ./mallet run examples/simple/params-pipelinerun.yaml --dry-run --debug
+          ./mallet run examples/simple/results-pipelinerun.yaml --dry-run --debug
+          ./mallet run examples/simple/parallel-pipelinerun.yaml --dry-run --debug
+          ./mallet run examples/simple/matrix-pipelinerun.yaml --dry-run --debug
+          ./mallet run examples/simple/sidecar-pipelinerun.yaml --dry-run --debug
