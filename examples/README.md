@@ -53,6 +53,24 @@ chisel run examples/simple/parallel-pipelinerun.yaml
 mallet run examples/simple/sidecar-pipelinerun.yaml
 ```
 
+### Running Pipeline/Task with CLI Parameters
+
+When running a Pipeline or Task directly (not a PipelineRun), use `--param/-p` to provide parameter values:
+
+```bash
+# Run a Task with custom parameter
+mallet run examples/simple/hello-task.yaml --param message="Custom greeting"
+
+# Run a Pipeline with parameter override
+chisel run examples/simple/hello-pipeline.yaml -p greeting="Hello from CLI!"
+
+# Array parameters (comma-separated)
+mallet run task.yaml --param "packages=fmt,strings,os"
+
+# Object parameters (key:value pairs in quotes)
+mallet run task.yaml --param 'config="host:localhost, port:8080"'
+```
+
 ## Resolver Examples
 
 Located in `examples/resolvers/`:

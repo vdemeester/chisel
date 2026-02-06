@@ -61,8 +61,17 @@ Both tools use the same CLI interface:
 chisel run pipelinerun.yaml
 mallet run pipelinerun.yaml
 
-# Run a Task directly
+# Run a Task or Pipeline directly
 chisel run task.yaml
+mallet run pipeline.yaml
+
+# Pass parameters when running Task/Pipeline directly
+chisel run task.yaml --param message="Hello World"
+mallet run pipeline.yaml -p greeting="Hi" -p count=5
+
+# Array and object parameters
+mallet run task.yaml --param "packages=fmt,strings,os"
+mallet run task.yaml --param 'config="host:localhost, port:8080"'
 
 # Specify task definitions directory
 chisel run pipelinerun.yaml --tasks=./tasks/

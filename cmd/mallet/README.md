@@ -59,6 +59,14 @@ mallet run pipelinerun.yaml
 # Run a Task directly
 mallet run task.yaml
 
+# Run a Pipeline/Task with custom parameters
+mallet run task.yaml --param message="Hello World"
+mallet run pipeline.yaml -p greeting="Hi" -p count=5
+
+# Array and object parameters
+mallet run task.yaml --param "packages=fmt,strings,os"
+mallet run task.yaml --param 'config="host:localhost, port:8080"'
+
 # With debug output
 mallet run pipelinerun.yaml --debug
 
