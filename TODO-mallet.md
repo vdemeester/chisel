@@ -124,9 +124,32 @@ Transform chisel into a monorepo supporting two backends:
 
 ### Phase 6: Polish, Documentation & Release ⏳
 **Timeline:** Week 7
-**Status:** Not started
+**Status:** In progress (2026-02-06)
 **Estimated LOC:** ~200 LOC
 
+- [x] Bug fixes from example testing
+  - [x] Apply stepTemplate defaults to steps
+  - [x] Handle task-level volumes with emptyDir support
+  - [x] Variable substitution in workingDir
+  - [x] Override entrypoint for scripts (handle images with custom entrypoints)
+  - [x] Create workingDir if it doesn't exist
+- [x] Example testing (12/13 passing)
+  - [x] hello-pipelinerun: PASS
+  - [x] params-pipelinerun: PASS (array param expansion as designed)
+  - [x] results-pipelinerun: PASS
+  - [x] parallel-pipelinerun: PASS
+  - [x] matrix-pipelinerun: PASS
+  - [x] when-pipelinerun: PASS
+  - [x] retry-pipelinerun: PASS
+  - [x] timeout-pipelinerun: PASS
+  - [x] steptemplate-pipelinerun: PASS
+  - [x] volumes-pipelinerun: PASS
+  - [x] verbose-pipelinerun: PASS
+  - [x] workspace-override-pipelinerun: PASS
+  - [ ] sidecar-pipelinerun: PARTIAL (containers don't share network namespace)
+- [ ] Known limitations
+  - [ ] Sidecar networking: containers run standalone, not in pods
+  - [ ] Sidecars accessible via localhost only, not by hostname
 - [ ] Performance optimization
   - [ ] Connection pooling
   - [ ] Parallel container cleanup
