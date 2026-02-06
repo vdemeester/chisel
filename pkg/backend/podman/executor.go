@@ -142,15 +142,13 @@ func (b *PodmanBackend) ExecuteStep(ctx context.Context, req *backend.StepReques
 }
 
 // StartSidecar starts a sidecar service container.
-// TODO: Implement using Podman pods for network sharing.
 func (b *PodmanBackend) StartSidecar(ctx context.Context, req *backend.SidecarRequest) (*backend.SidecarHandle, error) {
-	return nil, ErrNotImplemented
+	return b.startSidecarImpl(ctx, req)
 }
 
 // StopSidecar stops a running sidecar service.
-// TODO: Implement container stop and removal.
 func (b *PodmanBackend) StopSidecar(ctx context.Context, handle *backend.SidecarHandle) error {
-	return ErrNotImplemented
+	return b.stopSidecarImpl(ctx, handle)
 }
 
 // ReadResult reads a result file from a completed step container.

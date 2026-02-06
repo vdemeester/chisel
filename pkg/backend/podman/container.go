@@ -52,12 +52,10 @@ type ContainerResult struct {
 }
 
 // Validate checks if the container spec is valid.
+// Command is optional - if not specified, the image's default entrypoint is used.
 func (s *ContainerSpec) Validate() error {
 	if s.Image == "" {
 		return errors.New("image is required")
-	}
-	if len(s.Command) == 0 {
-		return errors.New("command is required")
 	}
 	return nil
 }

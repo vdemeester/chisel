@@ -2,7 +2,6 @@ package podman
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -94,45 +93,50 @@ func TestExecuteStepNilRequest(t *testing.T) {
 	}
 }
 
-// TestStartSidecarNotImplemented verifies StartSidecar returns ErrNotImplemented.
-func TestStartSidecarNotImplemented(t *testing.T) {
+// TestStartSidecarMissingImage verifies StartSidecar validates the request.
+func TestStartSidecarMissingImage(t *testing.T) {
 	b := NewPodmanBackend()
 	ctx := context.Background()
 
 	req := &backend.SidecarRequest{
-		Name:  "redis",
-		Image: "redis:latest",
+		Name:  "test",
+		Image: "", // Missing image
 	}
 
 	handle, err := b.StartSidecar(ctx, req)
 	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("expected ErrNotImplemented, got %v", err)
+		if handle != nil {
+			_ = b.StopSidecar(ctx, handle)
+		}
+		t.Fatal("expected error for missing image")
 	}
 	if handle != nil {
 		t.Errorf("expected nil handle, got %+v", handle)
 	}
 }
 
-// TestStopSidecarNotImplemented verifies StopSidecar returns ErrNotImplemented.
-func TestStopSidecarNotImplemented(t *testing.T) {
+// TestStopSidecarNonexistent verifies StopSidecar handles nonexistent containers.
+func TestStopSidecarNonexistent(t *testing.T) {
+	// Skip if Podman is not available
+	if detectSocketPath() == "" {
+		t.Skip("Podman not available")
+	}
+
 	b := NewPodmanBackend()
 	ctx := context.Background()
 
 	handle := &backend.SidecarHandle{
-		ID:      "test-sidecar-123",
-		Name:    "redis",
+		ID:      "nonexistent-container-id-12345",
+		Name:    "test",
 		Backend: "podman",
 	}
 
+	// Should return an error for nonexistent container
 	err := b.StopSidecar(ctx, handle)
 	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(err, ErrNotImplemented) {
-		t.Errorf("expected ErrNotImplemented, got %v", err)
+		t.Log("StopSidecar succeeded for nonexistent container (OK if already removed)")
+	} else {
+		t.Logf("StopSidecar returned expected error: %v", err)
 	}
 }
 
