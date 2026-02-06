@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -158,7 +159,15 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		taskResults, err := executeTask(ctx, be, *task, resolved, log)
+		// Get current results snapshot for variable substitution
+		resultsMu.Lock()
+		resultsCopy := make(map[string]map[string]string)
+		for k, v := range results {
+			resultsCopy[k] = v
+		}
+		resultsMu.Unlock()
+
+		taskResults, err := executeTask(ctx, be, *task, resolved, resultsCopy, log)
 		if err != nil {
 			return err
 		}
@@ -175,7 +184,7 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 
 	// Execute finally tasks (always run, even on error)
 	for _, task := range resolved.FinallyTasks {
-		if _, err := executeTask(ctx, be, task, resolved, log); err != nil {
+		if _, err := executeTask(ctx, be, task, resolved, results, log); err != nil {
 			log.Warn(fmt.Sprintf("finally task %s failed: %v", task.Name, err))
 		}
 	}
@@ -188,12 +197,12 @@ func runPipeline(cmd *cobra.Command, args []string) error {
 }
 
 // executeTask runs all steps in a task and returns task results.
-func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTask, pr *types.ResolvedPipelineRun, log ui.Logger) (map[string]string, error) {
+func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTask, pr *types.ResolvedPipelineRun, taskResults map[string]map[string]string, log ui.Logger) (map[string]string, error) {
 	taskStart := time.Now()
 	log.TaskStart(task.Name)
 
 	// Collect results from all steps
-	taskResults := make(map[string]string)
+	stepResults := make(map[string]string)
 
 	for i, step := range task.Steps {
 		stepName := step.Name
@@ -204,13 +213,44 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 		stepStart := time.Now()
 		log.StepStart(stepName, step.Image)
 
+		// Substitute variables in script
+		script := step.Script
+		if script != "" {
+			script = substituteVariables(script, &task, pr, taskResults)
+		}
+
+		// Substitute variables in command
+		var command []string
+		for _, c := range step.Command {
+			command = append(command, substituteVariables(c, &task, pr, taskResults))
+		}
+
+		// Substitute variables in args
+		var args []string
+		for _, a := range step.Args {
+			args = append(args, substituteVariables(a, &task, pr, taskResults))
+		}
+
+		// Substitute variables in env values
+		env := make(map[string]string)
+		for k, v := range step.Env {
+			env[k] = substituteVariables(v, &task, pr, taskResults)
+		}
+
+		// Create a copy of step with substituted values
+		substitutedStep := step
+		substitutedStep.Script = script
+		substitutedStep.Command = command
+		substitutedStep.Args = args
+		substitutedStep.Env = env
+
 		// Build the step request
 		req := &backend.StepRequest{
-			Step:    &step,
+			Step:    &substitutedStep,
 			Image:   step.Image,
-			Command: step.Command,
-			Args:    step.Args,
-			Env:     step.Env,
+			Command: command,
+			Args:    args,
+			Env:     env,
 			WorkDir: step.WorkingDir,
 		}
 
@@ -251,12 +291,67 @@ func executeTask(ctx context.Context, be backend.Backend, task types.ResolvedTas
 
 		// Collect results from this step
 		for name, value := range result.Results {
-			taskResults[name] = value
+			stepResults[name] = value
 		}
 
 		log.StepEnd(stepName, time.Since(stepStart), nil)
 	}
 
 	log.TaskEnd(task.Name, time.Since(taskStart), nil)
-	return taskResults, nil
+	return stepResults, nil
+}
+
+// substituteVariables replaces Tekton variable references with actual values
+func substituteVariables(input string, task *types.ResolvedTask, pr *types.ResolvedPipelineRun, results map[string]map[string]string) string {
+	result := input
+
+	// Replace $(params.name) with task params
+	for name, value := range task.Params {
+		switch value.Type {
+		case types.ParamTypeArray:
+			// Handle $(params.name[*]) - expand to space-separated values
+			starPlaceholder := fmt.Sprintf("$(params.%s[*])", name)
+			result = strings.ReplaceAll(result, starPlaceholder, strings.Join(value.ArrayVal, " "))
+
+			// Handle $(params.name[N]) - expand to indexed value
+			for i, v := range value.ArrayVal {
+				indexPlaceholder := fmt.Sprintf("$(params.%s[%d])", name, i)
+				result = strings.ReplaceAll(result, indexPlaceholder, v)
+			}
+
+		case types.ParamTypeObject:
+			// Handle $(params.name.field) - expand to field value
+			for field, fieldValue := range value.ObjectVal {
+				fieldPlaceholder := fmt.Sprintf("$(params.%s.%s)", name, field)
+				result = strings.ReplaceAll(result, fieldPlaceholder, fieldValue)
+			}
+
+		default:
+			// String param - simple replacement
+			placeholder := fmt.Sprintf("$(params.%s)", name)
+			result = strings.ReplaceAll(result, placeholder, value.String())
+		}
+	}
+
+	// Replace $(workspaces.name.path) with workspace paths
+	for name := range task.Workspaces {
+		placeholder := fmt.Sprintf("$(workspaces.%s.path)", name)
+		path := fmt.Sprintf("/workspace/%s", name)
+		result = strings.ReplaceAll(result, placeholder, path)
+	}
+
+	// Replace $(tasks.taskname.results.resultname) with stored results
+	for taskName, taskResults := range results {
+		for resultName, resultValue := range taskResults {
+			placeholder := fmt.Sprintf("$(tasks.%s.results.%s)", taskName, resultName)
+			result = strings.ReplaceAll(result, placeholder, resultValue)
+		}
+	}
+
+	// Replace $(context.*) variables
+	result = strings.ReplaceAll(result, "$(context.pipelineRun.name)", pr.Name)
+	result = strings.ReplaceAll(result, "$(context.pipeline.name)", pr.PipelineName)
+	result = strings.ReplaceAll(result, "$(context.task.name)", task.TaskName)
+
+	return result
 }
