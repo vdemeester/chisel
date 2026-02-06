@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-
-	"github.com/containers/podman/v5/pkg/bindings"
 )
 
 // ErrPodmanNotRunning is returned when the Podman service is not available.
@@ -22,7 +20,6 @@ var ErrNoSocketFound = errors.New("no podman socket found: check XDG_RUNTIME_DIR
 // Client manages the connection to the Podman service.
 type Client struct {
 	socketPath string
-	ctx        context.Context
 }
 
 // NewClient creates a new Podman client using auto-detected socket path.
@@ -40,27 +37,20 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 		return nil, fmt.Errorf("podman socket not found at %s: %w", socketPath, ErrPodmanNotRunning)
 	}
 
-	// Create a context connected to the Podman service
-	ctx, err := bindings.NewConnection(context.Background(), "unix://"+socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to podman at %s: %w", socketPath, err)
-	}
-
 	return &Client{
 		socketPath: socketPath,
-		ctx:        ctx,
 	}, nil
 }
 
 // Close closes the client connection.
 func (c *Client) Close() error {
-	// The bindings context doesn't require explicit cleanup
+	// No persistent connection to close with HTTP-based approach
 	return nil
 }
 
-// Context returns the Podman bindings context for API calls.
+// Context returns a context with the socket path for API calls.
 func (c *Client) Context() context.Context {
-	return c.ctx
+	return context.Background()
 }
 
 // SocketPath returns the path to the Podman socket.
