@@ -378,6 +378,17 @@ func (p *Parser) parsePipelineAsPipelineRun(data []byte, baseDir string) (*types
 		resolved.Params[name] = value
 	}
 
+	// Validate required params are provided
+	var missingParams []string
+	for _, param := range pipeline.Spec.Params {
+		if _, ok := resolved.Params[param.Name]; !ok {
+			missingParams = append(missingParams, param.Name)
+		}
+	}
+	if len(missingParams) > 0 {
+		return nil, fmt.Errorf("missing required parameter(s): %s (use --param to provide values)", strings.Join(missingParams, ", "))
+	}
+
 	// Create default workspace bindings
 	for _, ws := range pipeline.Spec.Workspaces {
 		resolved.Workspaces[ws.Name] = types.WorkspaceBinding{
@@ -430,6 +441,17 @@ func (p *Parser) parseTaskAsPipelineRun(data []byte, baseDir string) (*types.Res
 	// Override with CLI params
 	for name, value := range p.opts.Params {
 		resolved.Params[name] = value
+	}
+
+	// Validate required params are provided
+	var missingParams []string
+	for _, param := range task.Spec.Params {
+		if _, ok := resolved.Params[param.Name]; !ok {
+			missingParams = append(missingParams, param.Name)
+		}
+	}
+	if len(missingParams) > 0 {
+		return nil, fmt.Errorf("missing required parameter(s): %s (use --param to provide values)", strings.Join(missingParams, ", "))
 	}
 
 	// Create default workspace bindings

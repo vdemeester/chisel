@@ -23,6 +23,8 @@ Located in `examples/simple/`:
 | `hello-pipelinerun.yaml` | Basic 3-step pipeline with sequential tasks |
 | `hello-pipeline.yaml` | Standalone Pipeline definition |
 | `hello-task.yaml` | Standalone Task definition |
+| `params-task.yaml` | Task with string, array, object params (for `--param` demo) |
+| `params-pipeline.yaml` | Pipeline with all param types (for `--param` demo) |
 | `params-pipelinerun.yaml` | Parameter types: string, array, object |
 | `results-pipelinerun.yaml` | Result passing between tasks |
 | `parallel-pipelinerun.yaml` | Parallel task execution with DAG |
@@ -58,18 +60,31 @@ mallet run examples/simple/sidecar-pipelinerun.yaml
 When running a Pipeline or Task directly (not a PipelineRun), use `--param/-p` to provide parameter values:
 
 ```bash
-# Run a Task with custom parameter
-mallet run examples/simple/hello-task.yaml --param message="Custom greeting"
+# Run the params-task example with defaults
+mallet run examples/simple/params-task.yaml
 
-# Run a Pipeline with parameter override
-chisel run examples/simple/hello-pipeline.yaml -p greeting="Hello from CLI!"
+# Override string parameter
+mallet run examples/simple/params-task.yaml --param greeting="Custom greeting"
 
-# Array parameters (comma-separated)
-mallet run task.yaml --param "packages=fmt,strings,os"
+# Override array parameter (comma-separated)
+mallet run examples/simple/params-task.yaml --param "items=apple,banana,cherry"
 
-# Object parameters (key:value pairs in quotes)
-mallet run task.yaml --param 'config="host:localhost, port:8080"'
+# Override object parameter (key:value pairs in quotes)
+mallet run examples/simple/params-task.yaml --param 'server="host:example.com, port:443"'
+
+# Multiple parameters at once
+mallet run examples/simple/params-task.yaml \
+  -p greeting="Hello" \
+  -p "items=one,two,three" \
+  -p 'server="host:localhost, port:8080"'
+
+# Pipeline example
+chisel run examples/simple/params-pipeline.yaml \
+  --param app-name="my-app" \
+  --param "environments=dev,staging,prod"
 ```
+
+**Note:** If a parameter has no default value, you must provide it via `--param` or the command will fail with a clear error message.
 
 ## Resolver Examples
 

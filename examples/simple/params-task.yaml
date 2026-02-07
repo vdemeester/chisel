@@ -1,0 +1,70 @@
+# Task demonstrating CLI parameter overrides
+#
+# Run with default parameters:
+#   mallet run examples/simple/params-task.yaml
+#
+# Override string parameter:
+#   mallet run examples/simple/params-task.yaml --param greeting="Custom greeting"
+#
+# Override array parameter:
+#   mallet run examples/simple/params-task.yaml --param "items=apple,banana,cherry"
+#
+# Override object parameter:
+#   mallet run examples/simple/params-task.yaml --param 'server="host:example.com, port:443"'
+#
+# Override multiple parameters:
+#   mallet run examples/simple/params-task.yaml \
+#     -p greeting="Hello" \
+#     -p "items=one,two,three" \
+#     -p 'server="host:localhost, port:8080"'
+
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: params-demo
+spec:
+  params:
+    - name: greeting
+      type: string
+      default: "Hello from Task!"
+    - name: items
+      type: array
+      default:
+        - "item-1"
+        - "item-2"
+        - "item-3"
+    - name: server
+      type: object
+      properties:
+        host:
+          type: string
+        port:
+          type: string
+      default:
+        host: "localhost"
+        port: "8080"
+  steps:
+    - name: show-string
+      image: alpine:latest
+      script: |
+        #!/bin/sh
+        echo "=== String Parameter ==="
+        echo "Greeting: $(params.greeting)"
+
+    - name: show-array
+      image: alpine:latest
+      script: |
+        #!/bin/sh
+        echo "=== Array Parameter ==="
+        echo "All items: $(params.items[*])"
+        echo "First item: $(params.items[0])"
+        echo "Second item: $(params.items[1])"
+
+    - name: show-object
+      image: alpine:latest
+      script: |
+        #!/bin/sh
+        echo "=== Object Parameter ==="
+        echo "Host: $(params.server.host)"
+        echo "Port: $(params.server.port)"
+        echo "URL: http://$(params.server.host):$(params.server.port)"

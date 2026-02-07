@@ -1,0 +1,69 @@
+# Pipeline demonstrating CLI parameter overrides
+#
+# Run with default parameters:
+#   chisel run examples/simple/params-pipeline.yaml
+#
+# Override parameters:
+#   chisel run examples/simple/params-pipeline.yaml \
+#     --param app-name="my-app" \
+#     --param "environments=dev,staging,prod" \
+#     --param 'build-config="target:linux, arch:amd64"'
+
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: params-pipeline-demo
+spec:
+  params:
+    - name: app-name
+      type: string
+      default: "example-app"
+    - name: environments
+      type: array
+      default:
+        - "development"
+        - "production"
+    - name: build-config
+      type: object
+      properties:
+        target:
+          type: string
+        arch:
+          type: string
+      default:
+        target: "linux"
+        arch: "amd64"
+
+  tasks:
+    - name: show-config
+      taskSpec:
+        params:
+          - name: app
+            type: string
+          - name: envs
+            type: array
+          - name: config
+            type: object
+        steps:
+          - name: display
+            image: alpine:latest
+            script: |
+              #!/bin/sh
+              echo "=== Pipeline Parameters ==="
+              echo ""
+              echo "Application: $(params.app)"
+              echo ""
+              echo "Environments: $(params.envs[*])"
+              echo "  - First: $(params.envs[0])"
+              echo "  - Second: $(params.envs[1])"
+              echo ""
+              echo "Build Config:"
+              echo "  - Target: $(params.config.target)"
+              echo "  - Arch: $(params.config.arch)"
+      params:
+        - name: app
+          value: "$(params.app-name)"
+        - name: envs
+          value: "$(params.environments[*])"
+        - name: config
+          value: "$(params.build-config)"
