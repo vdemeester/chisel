@@ -1,0 +1,42 @@
+# Task with required parameters (no defaults)
+#
+# This task will FAIL without providing parameters:
+#   mallet run examples/simple/required-params-task.yaml
+#   # ERROR: missing required parameter(s): name, email (use --param to provide values)
+#
+# Provide required parameters:
+#   mallet run examples/simple/required-params-task.yaml \
+#     --param name="Alice" \
+#     --param email="alice@example.com"
+#
+# Mix of required and optional:
+#   mallet run examples/simple/required-params-task.yaml \
+#     -p name="Bob" \
+#     -p email="bob@example.com" \
+#     -p greeting="Hey"
+
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: required-params-demo
+spec:
+  params:
+    # Required parameters (no default)
+    - name: name
+      type: string
+      description: "User's name (required)"
+    - name: email
+      type: string
+      description: "User's email (required)"
+    # Optional parameter (has default)
+    - name: greeting
+      type: string
+      default: "Hello"
+      description: "Greeting to use (optional)"
+  steps:
+    - name: greet-user
+      image: alpine:latest
+      script: |
+        #!/bin/sh
+        echo "$(params.greeting), $(params.name)!"
+        echo "We'll send a confirmation to: $(params.email)"

@@ -25,6 +25,7 @@ Located in `examples/simple/`:
 | `hello-task.yaml` | Standalone Task definition |
 | `params-task.yaml` | Task with string, array, object params (for `--param` demo) |
 | `params-pipeline.yaml` | Pipeline with all param types (for `--param` demo) |
+| `required-params-task.yaml` | Task with required params (no defaults) |
 | `params-pipelinerun.yaml` | Parameter types: string, array, object |
 | `results-pipelinerun.yaml` | Result passing between tasks |
 | `parallel-pipelinerun.yaml` | Parallel task execution with DAG |
