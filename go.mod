@@ -3,7 +3,7 @@ module github.com/vdemeester/chisel
 go 1.25.5
 
 require (
-	dagger.io/dagger v0.19.10
+	dagger.io/dagger v0.19.11
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/google/go-containerregistry v0.20.7
